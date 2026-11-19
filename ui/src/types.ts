@@ -18,6 +18,7 @@ export interface NetworkInterfaceInfo {
   ip: string;
   link_speed_mbps: number;
   is_vpn: boolean;
+  is_virtual?: boolean;
 }
 
 export interface HardwareInfo {
@@ -35,6 +36,7 @@ export interface AppConfig {
   nvme_staging_enabled: boolean;
   staging_path: string;
   staging_min_free_gb: number;
+  staging_min_size_gb: number;
   listen_port: number;
   random_port: boolean;
   network_interface: string;
@@ -103,6 +105,9 @@ export interface GlobalStats {
   download_rate: number;
   upload_rate: number;
   dht_nodes: number;
+  dht_state_loaded?: boolean;
+  listen_interfaces?: string;
+  max_queued_disk_mb?: number;
   peers_connected: number;
   peers_half_open: number;
   queued_write_bytes: number;

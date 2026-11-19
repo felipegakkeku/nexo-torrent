@@ -43,6 +43,7 @@ class AppConfig(BaseModel):
     nvme_staging_enabled: bool = True
     staging_path: str = ""
     staging_min_free_gb: float = Field(default=20.0, ge=1.0, le=500.0)
+    staging_min_size_gb: float = Field(default=2.0, ge=0.0, le=500.0)
     listen_port: int = Field(default=51413, ge=1024, le=65535)
     random_port: bool = False
     network_interface: str = ""

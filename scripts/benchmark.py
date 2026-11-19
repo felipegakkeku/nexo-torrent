@@ -220,6 +220,7 @@ def _run_local_vortex(
             staging_path=str(staging_dir) if staging_dir else "",
             nvme_staging_enabled=use_staging,
             listen_port=client_port,
+            network_interface="127.0.0.1",
             enable_dht=False,
             enable_lsd=False,
             enable_upnp=False,
@@ -438,16 +439,19 @@ def _run_live_vortex(
     save_dir: Path,
     duration_s: int,
     data_dir: Path,
+    listen_port: int = 55202,
+    label: str = "VortexTorrent v1.1 (Cold Start)",
 ) -> dict[str, Any]:
     os.environ["VORTEX_DATA_DIR"] = str(data_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
     engine = VortexEngine()
+    dht_loaded = bool(engine._dht_state_loaded)
     engine.apply_config(
         AppConfig(
             profile="turbo_max",
             default_save_path=str(save_dir),
             nvme_staging_enabled=False,
-            listen_port=55202,
+            listen_port=listen_port,
             prefer_tcp=True,
             auto_boost_public_trackers=True,
         )
@@ -502,7 +506,8 @@ def _run_live_vortex(
     tail_bps = sum(tail_samples) / max(1, len(tail_samples))
 
     return {
-        "name": "VortexTorrent (Turbo Max + Boost)",
+        "name": label,
+        "dht_state_loaded": dht_loaded,
         "first_1mbs_s": first_1mbs_s,
         "peers_5s": peers_at[5],
         "peers_15s": peers_at[15],
@@ -648,16 +653,36 @@ def main() -> None:
                 f"  4A {r4a['name']}: Baixado={r4a['downloaded_mb']} MB | 1MB/s em={r4a['first_1mbs_s']}s | Peers(5s/15s/fim)={r4a['peers_5s']}/{r4a['peers_15s']}/{r4a['peers_end']} (pico {r4a['peak_peers']}) | Media={_fmt_mbps(r4a['avg_bps'])} | Pos-rampa={_fmt_mbps(r4a['tail_bps'])} | Pico={_fmt_mbps(r4a['peak_bps'])} | Efic={r4a['efficiency_pct']}%"
             )
             time.sleep(2.0)
+            appdata_4b = C_TMP / "appdata_4b"
             r4b = _run_live_vortex(
                 ubuntu_raw,
                 C_TMP / "live_vortex",
                 args.live_seconds,
-                C_TMP / "appdata_4b",
+                appdata_4b,
+                listen_port=55202,
+                label="VortexTorrent v1.1 (Cold Start)",
             )
             print(
-                f"  4B {r4b['name']}: Baixado={r4b['downloaded_mb']} MB | 1MB/s em={r4b['first_1mbs_s']}s | Peers(5s/15s/fim)={r4b['peers_5s']}/{r4b['peers_15s']}/{r4b['peers_end']} (pico {r4b['peak_peers']}) | Media={_fmt_mbps(r4b['avg_bps'])} | Pos-rampa={_fmt_mbps(r4b['tail_bps'])} | Pico={_fmt_mbps(r4b['peak_bps'])} | Efic={r4b['efficiency_pct']}%"
+                f"  4B {r4b['name']}: DHT_cache={r4b['dht_state_loaded']} | Baixado={r4b['downloaded_mb']} MB | 1MB/s em={r4b['first_1mbs_s']}s | Peers(5s/15s/fim)={r4b['peers_5s']}/{r4b['peers_15s']}/{r4b['peers_end']} (pico {r4b['peak_peers']}) | Media={_fmt_mbps(r4b['avg_bps'])} | Pos-rampa={_fmt_mbps(r4b['tail_bps'])} | Pico={_fmt_mbps(r4b['peak_bps'])} | Efic={r4b['efficiency_pct']}%"
             )
-            results["live"] = {"baseline": r4a, "vortex": r4b}
+            time.sleep(2.0)
+            appdata_4c = C_TMP / "appdata_4c"
+            (appdata_4c / "state").mkdir(parents=True, exist_ok=True)
+            src_dht = appdata_4b / "state" / "session.state"
+            if src_dht.exists():
+                shutil.copy2(src_dht, appdata_4c / "state" / "session.state")
+            r4c = _run_live_vortex(
+                ubuntu_raw,
+                C_TMP / "live_vortex_warm",
+                args.live_seconds,
+                appdata_4c,
+                listen_port=55203,
+                label="VortexTorrent v1.1 (DHT Persistido)",
+            )
+            print(
+                f"  4C {r4c['name']}: DHT_cache={r4c['dht_state_loaded']} | Baixado={r4c['downloaded_mb']} MB | 1MB/s em={r4c['first_1mbs_s']}s | Peers(5s/15s/fim)={r4c['peers_5s']}/{r4c['peers_15s']}/{r4c['peers_end']} (pico {r4c['peak_peers']}) | Media={_fmt_mbps(r4c['avg_bps'])} | Pos-rampa={_fmt_mbps(r4c['tail_bps'])} | Pico={_fmt_mbps(r4c['peak_bps'])} | Efic={r4c['efficiency_pct']}%"
+            )
+            results["live"] = {"baseline": r4a, "vortex_cold": r4b, "vortex_warm": r4c}
 
         print("\n=== RESUMO_JSON ===")
         print(json.dumps(results, indent=2, ensure_ascii=False))

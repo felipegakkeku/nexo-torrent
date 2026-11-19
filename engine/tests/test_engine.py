@@ -9,8 +9,15 @@ import libtorrent as lt
 import pytest
 
 from config import AppConfig
-from engine import VortexEngine, build_settings_pack
-from hardware import classify_path_drive, detect_hardware
+from engine import VortexEngine, _resolve_interface_bind, build_settings_pack
+from hardware import (
+    DriveInfo,
+    HardwareInfo,
+    NetworkInterfaceInfo,
+    classify_path_drive,
+    detect_hardware,
+    should_use_staging,
+)
 
 
 def _make_torrent_bytes(source_path: Path, private: bool = False) -> tuple[bytes, str]:
@@ -45,6 +52,15 @@ def test_turbo_settings_pack_valid():
             assert applied["hashing_threads"] >= 4
             assert applied["aio_threads"] >= 8
             assert applied["allow_multiple_connections_per_ip"] is True
+            assert applied["smooth_connects"] is False
+            assert applied["coalesce_writes"] is True
+            assert applied["coalesce_reads"] is True
+            assert applied["piece_extent_affinity"] is True
+            assert applied["dht_upload_rate_limit"] == 64000
+            assert applied["max_pex_peers"] == 200
+            assert applied["max_peer_recv_buffer_size"] == 8 * 1024 * 1024
+            assert applied["peer_connect_timeout"] == 7
+            assert applied["piece_timeout"] == 10
         elif profile == "balanced":
             assert applied["connection_speed"] == 200
             assert applied["connections_limit"] == 500
@@ -143,6 +159,7 @@ def test_local_loopback_swarm_and_staging(tmp_path: Path, monkeypatch: pytest.Mo
             staging_path=str(staging_root),
             nvme_staging_enabled=True,
             listen_port=54102,
+            network_interface="127.0.0.1",
             enable_dht=False,
             enable_lsd=False,
             enable_upnp=False,
@@ -217,3 +234,79 @@ def test_local_loopback_swarm_and_staging(tmp_path: Path, monkeypatch: pytest.Mo
         assert reloaded[0]["is_finished"] or reloaded[0]["is_seeding"]
     finally:
         engine_reload.shutdown()
+
+
+def test_virtual_interfaces_excluded_from_auto_bind():
+    mock_hw = HardwareInfo(
+        cpu_count=16,
+        ram_total_gb=32.0,
+        drives=[],
+        interfaces=[
+            NetworkInterfaceInfo(
+                name="vEthernet (Default Switch)",
+                description="Hyper-V Virtual Ethernet Adapter",
+                ip="172.26.176.1",
+                is_virtual=True,
+            ),
+            NetworkInterfaceInfo(
+                name="vEthernet (WSL (Hyper-V firewall))",
+                description="Hyper-V Virtual Ethernet Adapter #2",
+                ip="172.22.224.1",
+                is_virtual=True,
+            ),
+            NetworkInterfaceInfo(
+                name="Loopback Pseudo-Interface",
+                description="Software Loopback",
+                ip="127.0.0.1",
+                is_virtual=True,
+            ),
+            NetworkInterfaceInfo(
+                name="Ethernet",
+                description="Realtek PCIe GbE Family Controller",
+                ip="192.168.0.3",
+                link_speed_mbps=1000,
+                is_virtual=False,
+            ),
+        ],
+    )
+    listen_str, out_str = _resolve_interface_bind(
+        AppConfig(network_interface="", listen_port=51413), mock_hw
+    )
+    assert listen_str == "192.168.0.3:51413"
+    assert out_str == ""
+
+
+def test_smart_staging_threshold():
+    hw = detect_hardware()
+    cfg = AppConfig(
+        nvme_staging_enabled=True,
+        staging_path=r"C:\VortexStaging",
+        staging_min_size_gb=2.0,
+        staging_min_free_gb=20.0,
+    )
+    small_ok, small_reason = should_use_staging(r"D:\Downloads", 512 * 1024 * 1024, cfg, hw)
+    assert small_ok is False
+    assert "cache em RAM" in small_reason
+
+    large_ok, _ = should_use_staging(r"D:\Downloads", 5 * (1024**3), cfg, hw)
+    assert large_ok is True
+
+
+def test_dht_session_state_persisted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("VORTEX_DATA_DIR", str(tmp_path / "appdata"))
+    e1 = VortexEngine()
+    try:
+        assert e1._dht_state_loaded is False
+    finally:
+        e1.shutdown()
+
+    state_file = tmp_path / "appdata" / "state" / "session.state"
+    assert state_file.exists() and state_file.stat().st_size > 0
+
+    e2 = VortexEngine()
+    try:
+        assert e2._dht_state_loaded is True
+        snap = e2.get_state_snapshot()
+        assert snap["global"]["dht_state_loaded"] is True
+    finally:
+        e2.shutdown()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
 import shutil
@@ -51,10 +52,30 @@ def _resolve_interface_bind(cfg: AppConfig, hw: HardwareInfo) -> tuple[str, str]
     port = 0 if cfg.random_port else int(cfg.listen_port)
     iface_sel = (cfg.network_interface or "").strip()
     if iface_sel:
+        try:
+            ip_obj = ipaddress.ip_address(iface_sel)
+            formatted = f"[{iface_sel}]:{port}" if ip_obj.version == 6 else f"{iface_sel}:{port}"
+            return formatted, iface_sel
+        except ValueError:
+            pass
         for iface in hw.interfaces:
             if iface.name == iface_sel or iface.ip == iface_sel:
                 if iface.ip:
                     return f"{iface.ip}:{port}", iface.ip
+
+    routable: list[str] = []
+    seen: set[str] = set()
+    for iface in hw.interfaces:
+        ip = (iface.ip or "").strip()
+        if not ip or iface.is_virtual:
+            continue
+        if ip.startswith("127.") or ip.startswith("169.254."):
+            continue
+        if ip not in seen:
+            seen.add(ip)
+            routable.append(ip)
+    if routable:
+        return ",".join(f"{ip}:{port}" for ip in routable), ""
     return f"0.0.0.0:{port},[::]:{port}", ""
 
 
@@ -79,15 +100,37 @@ def build_settings_pack(
     hash_turbo = min(8, max(4, hw.cpu_count // 2))
 
     if cfg.profile == "turbo_max":
+        queued_disk_max = (
+            1024 * 1024 * 1024 if hw.ram_total_gb >= 24.0 else 512 * 1024 * 1024
+        )
         profile_overrides: dict[str, Any] = {
             "connection_speed": 500,
             "connections_limit": 1200,
             "torrent_connect_boost": 100,
+            "smooth_connects": False,
+            "coalesce_writes": True,
+            "coalesce_reads": True,
+            "piece_extent_affinity": True,
             "max_out_request_queue": 2500,
             "max_allowed_in_request_queue": 3000,
             "request_queue_time": 3,
             "whole_pieces_threshold": 20,
             "strict_end_game_mode": False,
+            "peer_connect_timeout": 7,
+            "piece_timeout": 10,
+            "request_timeout": 25,
+            "max_pex_peers": 200,
+            "max_peer_recv_buffer_size": 8 * 1024 * 1024,
+            "peer_turnover": 8,
+            "peer_turnover_cutoff": 75,
+            "peer_turnover_interval": 90,
+            "utp_target_delay": 250,
+            "utp_gain_factor": 6000,
+            "max_web_seed_connections": 16,
+            "listen_queue_size": 64,
+            "dht_upload_rate_limit": 64000,
+            "dht_search_branching": 10,
+            "dht_max_peers_reply": 200,
             "send_buffer_low_watermark": 2 * 1024 * 1024,
             "send_buffer_watermark": 8 * 1024 * 1024,
             "send_buffer_watermark_factor": 150,
@@ -96,7 +139,7 @@ def build_settings_pack(
             "aio_threads": aio_turbo,
             "hashing_threads": hash_turbo,
             "checking_mem_usage": 4096,
-            "max_queued_disk_bytes": 512 * 1024 * 1024,
+            "max_queued_disk_bytes": queued_disk_max,
             "file_pool_size": 500,
             "unchoke_slots_limit": 32,
             "max_peerlist_size": 5000,
@@ -107,11 +150,23 @@ def build_settings_pack(
             "connection_speed": 200,
             "connections_limit": 500,
             "torrent_connect_boost": 50,
+            "smooth_connects": False,
+            "coalesce_writes": True,
+            "coalesce_reads": True,
+            "piece_extent_affinity": True,
             "max_out_request_queue": 1000,
             "max_allowed_in_request_queue": 1200,
             "request_queue_time": 3,
             "whole_pieces_threshold": 15,
             "strict_end_game_mode": False,
+            "peer_connect_timeout": 10,
+            "piece_timeout": 14,
+            "request_timeout": 35,
+            "max_pex_peers": 120,
+            "max_peer_recv_buffer_size": 4 * 1024 * 1024,
+            "max_web_seed_connections": 8,
+            "dht_upload_rate_limit": 32000,
+            "dht_search_branching": 8,
             "send_buffer_low_watermark": 1024 * 1024,
             "send_buffer_watermark": 4 * 1024 * 1024,
             "send_buffer_watermark_factor": 150,
@@ -164,8 +219,9 @@ def build_settings_pack(
         "disk_io_write_mode": os_cache_val,
         "disk_io_read_mode": os_cache_val,
         "seed_choking_algorithm": fastest_upload_val,
-        "tracker_completion_timeout": 15,
-        "tracker_receive_timeout": 10,
+        "tracker_completion_timeout": 10,
+        "tracker_receive_timeout": 7,
+        "tracker_backoff": 100,
         "stop_tracker_timeout": 2,
         "active_downloads": int(cfg.max_active_downloads),
         "active_seeds": int(cfg.max_active_seeds),
@@ -178,8 +234,9 @@ def build_settings_pack(
         "enable_natpmp": bool(cfg.enable_upnp),
         "dht_bootstrap_nodes": (
             "router.bittorrent.com:6881,"
-            "dht.transmissionbt.com:6881,"
             "router.utorrent.com:6881,"
+            "dht.transmissionbt.com:6881,"
+            "dht.aelitis.com:6881,"
             "dht.libtorrent.org:25401"
         ),
         "listen_interfaces": listen_ifaces,
@@ -230,9 +287,21 @@ class VortexEngine:
 
         self.state_dir = get_state_dir()
         self.meta_path = self.state_dir / "meta.json"
+        self.session_state_path = self.state_dir / "session.state"
         self._meta: dict[str, dict[str, Any]] = self._load_meta()
+        self._dht_state_loaded = False
 
-        self.ses = lt.session()
+        if self.session_state_path.exists():
+            try:
+                sp = lt.read_session_params(self.session_state_path.read_bytes())
+                self.ses = lt.session(sp)
+                self._dht_state_loaded = True
+            except Exception as exc:
+                logger.debug("Fallback para nova sessao DHT: %s", exc)
+                self.ses = lt.session()
+        else:
+            self.ses = lt.session()
+
         self._metric_idx: dict[str, int] = {
             m.name: m.value_index for m in lt.session_stats_metrics()
         }
@@ -250,6 +319,7 @@ class VortexEngine:
         self._speed_history: deque[dict[str, Any]] = deque(maxlen=60)
         self._last_anti_stall_run = 0.0
         self._last_resume_save = time.time()
+        self._last_session_state_save = time.time()
         self._last_hw_refresh = time.time()
         self._pending_removals: set[str] = set()
         self._notified_finished: set[str] = set()
@@ -272,6 +342,14 @@ class VortexEngine:
         import json
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.meta_path.write_text(json.dumps(self._meta, indent=2), encoding="utf-8")
+
+    def _save_session_state(self) -> None:
+        try:
+            self.state_dir.mkdir(parents=True, exist_ok=True)
+            sp = self.ses.session_state(lt.save_state_flags_t.save_dht_state)
+            self.session_state_path.write_bytes(lt.write_session_params_buf(sp))
+        except Exception as exc:
+            logger.debug("Erro ao persistir session.state DHT: %s", exc)
 
     def apply_config(self, new_cfg: AppConfig) -> AppConfig:
         with self._lock:
@@ -861,7 +939,7 @@ class VortexEngine:
     def _run_anti_stall(self, now: float) -> None:
         if not self.cfg.anti_stall_enabled:
             return
-        if now - self._last_anti_stall_run < 3.0:
+        if now - self._last_anti_stall_run < 2.5:
             return
         self._last_anti_stall_run = now
 
@@ -878,8 +956,9 @@ class VortexEngine:
 
             added_at = float(meta.get("added_at") or now)
             age = now - added_at
-            if age <= 25.0 and st.num_peers < 25:
-                if now - float(meta.get("last_initial_boost_ts") or 0.0) >= 8.0:
+            last_boost = float(meta.get("last_initial_boost_ts") or 0.0)
+            if 2.5 <= age <= 25.0 and st.num_peers < 40:
+                if last_boost == 0.0 or (now - last_boost) >= 6.0:
                     meta["last_initial_boost_ts"] = now
                     h.force_reannounce()
                     h.force_dht_announce()
@@ -915,6 +994,10 @@ class VortexEngine:
                     if h.is_valid() and h.need_save_resume_data():
                         h.save_resume_data()
                 self._save_meta()
+
+            if now - self._last_session_state_save >= 60.0:
+                self._last_session_state_save = now
+                self._save_session_state()
 
             if now - self._last_hw_refresh >= 15.0:
                 self._last_hw_refresh = now
@@ -1065,12 +1148,18 @@ class VortexEngine:
                 )
 
             bottleneck = self._compute_bottleneck(torrents, total_dl)
+            cur_settings = self.ses.get_settings()
             return {
                 "torrents": torrents,
                 "global": {
                     "download_rate": total_dl,
                     "upload_rate": total_ul,
                     "dht_nodes": self._session_counters.get("dht_nodes", 0),
+                    "dht_state_loaded": self._dht_state_loaded,
+                    "listen_interfaces": str(cur_settings.get("listen_interfaces", "")),
+                    "max_queued_disk_mb": round(
+                        int(cur_settings.get("max_queued_disk_bytes", 0)) / (1024 * 1024)
+                    ),
                     "peers_connected": self._session_counters.get("num_peers_connected", 0),
                     "peers_half_open": self._session_counters.get("num_peers_half_open", 0),
                     "queued_write_bytes": self._session_counters.get("queued_write_bytes", 0),
@@ -1228,3 +1317,4 @@ class VortexEngine:
                     time.sleep(0.05)
 
             self._save_meta()
+            self._save_session_state()

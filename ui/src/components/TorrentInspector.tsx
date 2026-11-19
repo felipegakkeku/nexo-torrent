@@ -406,6 +406,22 @@ export function TorrentInspector({
               <span className="kv-label">Staging NVMe</span>
               <span className="kv-val">{torrent.staging_note || (torrent.staging_active ? 'Ativo' : 'Direto')}</span>
             </div>
+            <div className="kv-item">
+              <span className="kv-label">Tabela DHT</span>
+              <span className="kv-val">
+                {globalStats.dht_state_loaded ? 'Pré-aquecida (cache)' : 'Bootstrap inicial'}
+              </span>
+            </div>
+            <div className="kv-item">
+              <span className="kv-label">Interfaces de Escuta</span>
+              <span className="kv-val" title={globalStats.listen_interfaces || ''}>
+                {globalStats.listen_interfaces || 'Automático'}
+              </span>
+            </div>
+            <div className="kv-item">
+              <span className="kv-label">Limite de Fila em RAM</span>
+              <span className="kv-val">{globalStats.max_queued_disk_mb ?? 512} MB</span>
+            </div>
           </div>
         )}
       </div>

@@ -170,13 +170,38 @@ export function SettingsModal({
                 value={draft.network_interface}
                 onChange={(e) => setDraft({ ...draft, network_interface: e.target.value })}
               >
-                <option value="">Todas as interfaces disponíveis</option>
+                <option value="">Automático (apenas interfaces roteáveis)</option>
                 {(hardware?.interfaces ?? []).map((iface) => (
                   <option key={`${iface.name}-${iface.ip}`} value={iface.name}>
-                    {iface.name} {iface.ip ? `(${iface.ip})` : ''} {iface.is_vpn ? '[VPN]' : ''}
+                    {iface.name} {iface.ip ? `(${iface.ip})` : ''} {iface.is_vpn ? '[VPN]' : iface.is_virtual ? '[Virtual]' : ''}
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="field">
+              <label className="field-label">Tamanho mínimo para Turbo Staging (GB)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.5}
+                value={draft.staging_min_size_gb}
+                onChange={(e) =>
+                  setDraft({ ...draft, staging_min_size_gb: Math.max(0, Number(e.target.value) || 0) })
+                }
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label">Reserva mínima no SSD/NVMe (GB)</label>
+              <input
+                type="number"
+                min={1}
+                value={draft.staging_min_free_gb}
+                onChange={(e) =>
+                  setDraft({ ...draft, staging_min_free_gb: Math.max(1, Number(e.target.value) || 20) })
+                }
+              />
             </div>
 
             <div className="field">

@@ -33,6 +33,7 @@ class NetworkInterfaceInfo(BaseModel):
     ip: str = ""
     link_speed_mbps: int = 0
     is_vpn: bool = False
+    is_virtual: bool = False
 
 
 class HardwareInfo(BaseModel):
@@ -220,6 +221,10 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
                     k in joined
                     for k in ("vpn", "wireguard", "wintun", "tap-", "tun", "cloudflare", "warp", "openvpn", "nord", "proton")
                 )
+                is_virtual = (not is_vpn) and any(
+                    k in joined
+                    for k in ("hyper-v", "vethernet", "wsl", "virtualbox", "vmware", "loopback", "docker", "bluetooth", "teredo", "isatap")
+                )
                 ifaces.append(
                     NetworkInterfaceInfo(
                         name=name,
@@ -227,6 +232,7 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
                         ip=ip,
                         link_speed_mbps=speed,
                         is_vpn=is_vpn,
+                        is_virtual=is_virtual,
                     )
                 )
     except Exception:
@@ -255,7 +261,7 @@ def detect_hardware() -> HardwareInfo:
 
     physical_ifaces = [
         i for i in ifaces
-        if i.ip and "hyper-v" not in i.description.lower() and "vethernet" not in i.name.lower()
+        if i.ip and not i.is_virtual
     ]
     speeds = [i.link_speed_mbps for i in physical_ifaces if i.link_speed_mbps > 0]
     primary_link_mbps = max(speeds) if speeds else 1000
@@ -343,6 +349,14 @@ def should_use_staging(
             return (
                 False,
                 f"Destino ({dst_drive.drive}: {dst_drive.media_type}) já possui gravação rápida.",
+            )
+
+    if total_size_bytes > 0 and cfg.staging_min_size_gb > 0:
+        min_size_bytes = int(cfg.staging_min_size_gb * (1024**3))
+        if total_size_bytes < min_size_bytes:
+            return (
+                False,
+                f"Arquivo menor que {cfg.staging_min_size_gb:g} GB: gravação direta usa cache em RAM sem cópia extra.",
             )
 
     try:
