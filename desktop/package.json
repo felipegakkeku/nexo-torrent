@@ -1,8 +1,8 @@
 {
-  "name": "vortex-torrent-desktop",
-  "version": "1.0.0",
+  "name": "nexo-torrent-desktop",
+  "version": "1.1.1",
   "private": true,
-  "description": "Cliente BitTorrent de alta velocidade com núcleo libtorrent 2.1.1",
+  "description": "Cliente BitTorrent open source de desempenho extremo com núcleo C++ libtorrent 2.1.1 e identidade NEXO Mineral",
   "main": "main.js",
   "scripts": {
     "start": "electron ."

@@ -48,11 +48,11 @@ export function SpeedChart({ history, primaryLinkMbps }: SpeedChartProps) {
       <div className="chart-header">
         <div className="chart-legend">
           <span className="legend-item tabular">
-            <span className="dot" style={{ background: 'var(--cyan)' }} />
+            <span className="dot" style={{ background: 'var(--nexo-brand)' }} />
             <span>Download: {formatSpeed(curDl)} ({formatSpeedMbps(curDl)})</span>
           </span>
           <span className="legend-item tabular">
-            <span className="dot" style={{ background: 'var(--violet)' }} />
+            <span className="dot" style={{ background: 'var(--nexo-info)' }} />
             <span>Upload: {formatSpeed(curUl)}</span>
           </span>
         </div>
@@ -69,17 +69,17 @@ export function SpeedChart({ history, primaryLinkMbps }: SpeedChartProps) {
       >
         <defs>
           <linearGradient id="dlGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.34" />
-            <stop offset="100%" stopColor="#22D3EE" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="#65b7aa" stopOpacity="0.34" />
+            <stop offset="100%" stopColor="#65b7aa" stopOpacity="0.02" />
           </linearGradient>
           <linearGradient id="ulGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#A78BFA" stopOpacity="0.24" />
-            <stop offset="100%" stopColor="#A78BFA" stopOpacity="0.01" />
+            <stop offset="0%" stopColor="#8094d6" stopOpacity="0.24" />
+            <stop offset="100%" stopColor="#8094d6" stopOpacity="0.01" />
           </linearGradient>
         </defs>
 
-        <line x1="0" y1={height * 0.33} x2={width} y2={height * 0.33} stroke="#1F2636" strokeDasharray="3 5" />
-        <line x1="0" y1={height * 0.66} x2={width} y2={height * 0.66} stroke="#1F2636" strokeDasharray="3 5" />
+        <line x1="0" y1={height * 0.33} x2={width} y2={height * 0.33} stroke="#232524" strokeDasharray="3 5" />
+        <line x1="0" y1={height * 0.66} x2={width} y2={height * 0.66} stroke="#232524" strokeDasharray="3 5" />
 
         {showLinkLine && (
           <line
@@ -87,18 +87,18 @@ export function SpeedChart({ history, primaryLinkMbps }: SpeedChartProps) {
             y1={linkY}
             x2={width}
             y2={linkY}
-            stroke="#34D399"
-            strokeOpacity="0.55"
+            stroke="#49c78e"
+            strokeOpacity="0.6"
             strokeDasharray="6 4"
             strokeWidth="1.2"
           />
         )}
 
         <path d={buildArea((p) => p.ul)} fill="url(#ulGrad)" />
-        <path d={buildPath((p) => p.ul)} fill="none" stroke="#A78BFA" strokeWidth="1.5" />
+        <path d={buildPath((p) => p.ul)} fill="none" stroke="#8094d6" strokeWidth="1.5" />
 
         <path d={buildArea((p) => p.dl)} fill="url(#dlGrad)" />
-        <path d={buildPath((p) => p.dl)} fill="none" stroke="#22D3EE" strokeWidth="2" />
+        <path d={buildPath((p) => p.dl)} fill="none" stroke="#65b7aa" strokeWidth="2" />
       </svg>
     </section>
   );

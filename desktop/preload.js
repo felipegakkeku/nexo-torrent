@@ -1,11 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('vortex', {
+contextBridge.exposeInMainWorld('nexoTorrent', {
   getEngineConfig: () => ipcRenderer.invoke('get-engine-config'),
   selectFolder: (defaultPath) => ipcRenderer.invoke('select-folder', defaultPath),
   selectTorrentFile: () => ipcRenderer.invoke('select-torrent-file'),
   openPath: (targetPath) => ipcRenderer.invoke('open-path', targetPath),
   showInFolder: (targetPath) => ipcRenderer.invoke('show-in-folder', targetPath),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),
   windowClose: () => ipcRenderer.send('window-close'),

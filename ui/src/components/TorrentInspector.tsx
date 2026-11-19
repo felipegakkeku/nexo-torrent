@@ -59,12 +59,12 @@ export function TorrentInspector({
     canvas.height = h * dpr;
     ctx.scale(dpr, dpr);
 
-    ctx.fillStyle = '#0D1119';
+    ctx.fillStyle = '#080909';
     ctx.fillRect(0, 0, w, h);
 
     const map = details?.piece_map ?? [];
     if (map.length === 0) {
-      ctx.fillStyle = '#1F2636';
+      ctx.fillStyle = '#1d2020';
       ctx.fillRect(0, 0, w, h);
       return;
     }
@@ -72,9 +72,9 @@ export function TorrentInspector({
     const cellW = w / map.length;
     for (let i = 0; i < map.length; i += 1) {
       const state = map[i];
-      if (state === 2) ctx.fillStyle = '#22D3EE';
-      else if (state === 1) ctx.fillStyle = '#FBBF24';
-      else ctx.fillStyle = '#1A2233';
+      if (state === 2) ctx.fillStyle = '#65b7aa';
+      else if (state === 1) ctx.fillStyle = '#e6b64a';
+      else ctx.fillStyle = '#1d2020';
       const x = Math.floor(i * cellW);
       const cw = Math.max(1, Math.ceil(cellW) - (cellW > 3 ? 1 : 0));
       ctx.fillRect(x, 2, cw, h - 4);
@@ -184,13 +184,13 @@ export function TorrentInspector({
               </span>
               <span style={{ display: 'flex', gap: 12 }}>
                 <span>
-                  <span style={{ color: 'var(--cyan)' }}>■</span> Baixada
+                  <span style={{ color: 'var(--nexo-brand)' }}>■</span> Baixada
                 </span>
                 <span>
-                  <span style={{ color: 'var(--amber)' }}>■</span> Em transferência
+                  <span style={{ color: 'var(--nexo-warning)' }}>■</span> Em transferência
                 </span>
                 <span>
-                  <span style={{ color: '#334155' }}>■</span> Pendente
+                  <span style={{ color: '#303130' }}>■</span> Pendente
                 </span>
               </span>
             </div>
@@ -310,12 +310,12 @@ export function TorrentInspector({
                   <td>{p.endpoint}</td>
                   <td>{p.client}</td>
                   <td>
-                    <span className="badge" style={{ background: p.proto === 'TCP' ? 'var(--cyan-dim)' : 'var(--violet-dim)', color: p.proto === 'TCP' ? 'var(--cyan)' : 'var(--violet)' }}>
+                    <span className="badge" style={{ background: p.proto === 'TCP' ? 'var(--nexo-brand-soft)' : 'var(--nexo-info-soft)', color: p.proto === 'TCP' ? 'var(--nexo-brand-strong)' : 'var(--nexo-info)' }}>
                       {p.proto}
                     </span>
                   </td>
-                  <td style={{ color: 'var(--cyan)' }}>{formatSpeed(p.down_speed)}</td>
-                  <td style={{ color: 'var(--violet)' }}>{formatSpeed(p.up_speed)}</td>
+                  <td style={{ color: 'var(--nexo-brand-strong)' }}>{formatSpeed(p.down_speed)}</td>
+                  <td style={{ color: 'var(--nexo-info)' }}>{formatSpeed(p.up_speed)}</td>
                   <td>{p.progress.toFixed(1)}%</td>
                   <td>{p.rtt} ms</td>
                   <td style={{ color: 'var(--text-dim)' }}>{p.flags}</td>
@@ -379,7 +379,7 @@ export function TorrentInspector({
           <div className="kv-grid tabular">
             <div className="kv-item">
               <span className="kv-label">Diagnóstico de Gargalo</span>
-              <span className="kv-val" style={{ color: 'var(--cyan)' }}>
+              <span className="kv-val" style={{ color: 'var(--nexo-brand-strong)' }}>
                 <Cpu size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
                 {globalStats.bottleneck.label}: {globalStats.bottleneck.detail}
               </span>

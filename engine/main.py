@@ -22,7 +22,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-logger = logging.getLogger("vortex.main")
+logger = logging.getLogger("nexo.torrent.main")
 
 
 def _start_parent_watchdog(parent_pid: int, on_parent_dead) -> None:
@@ -57,7 +57,7 @@ def _start_parent_watchdog(parent_pid: int, on_parent_dead) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="VortexTorrent Engine")
+    parser = argparse.ArgumentParser(description="Nexo Torrent Engine")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=19742)
     parser.add_argument("--token", default="")
@@ -89,7 +89,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _handle_signal)
 
     _start_parent_watchdog(args.parent_pid, _request_exit)
-    logger.info("VortexTorrent Engine ouvindo em http://%s:%d", args.host, args.port)
+    logger.info("Nexo Torrent Engine ouvindo em http://%s:%d", args.host, args.port)
     server.run()
 
 

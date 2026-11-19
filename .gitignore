@@ -18,4 +18,4 @@ desktop/out/
 tmp/
 .env
 .env.local
-desktop/.vortex-runtime.json
+desktop/.nexo-runtime.json

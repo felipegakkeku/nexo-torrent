@@ -85,15 +85,15 @@ export function AddTorrentModal({
   const driveInfo = hardware?.drives.find((d) => d.drive.toUpperCase() === driveLetter);
 
   const handleBrowseFolder = async () => {
-    if (window.vortex) {
-      const chosen = await window.vortex.selectFolder(savePath);
+    if (window.nexoTorrent) {
+      const chosen = await window.nexoTorrent.selectFolder(savePath);
       if (chosen) setSavePath(chosen);
     }
   };
 
   const handleChooseTorrentFile = async () => {
-    if (window.vortex) {
-      const res = await window.vortex.selectTorrentFile();
+    if (window.nexoTorrent) {
+      const res = await window.nexoTorrent.selectTorrentFile();
       if (res) {
         const bin = atob(res.base64);
         const bytes = new Uint8Array(bin.length);
@@ -162,7 +162,7 @@ export function AddTorrentModal({
             <div className="field">
               <label className="field-label">Link Magnet</label>
               <div className="field-row">
-                <Link2 size={15} style={{ color: 'var(--cyan)', flexShrink: 0 }} />
+                <Link2 size={15} style={{ color: 'var(--nexo-brand)', flexShrink: 0 }} />
                 <input
                   type="text"
                   style={{ flex: 1 }}
@@ -261,7 +261,7 @@ export function AddTorrentModal({
           <div className="toggle-row">
             <div className="toggle-info">
               <span className="toggle-title">
-                <Zap size={13} style={{ color: 'var(--cyan)', verticalAlign: 'middle', marginRight: 5 }} />
+                <Zap size={13} style={{ color: 'var(--nexo-brand)', verticalAlign: 'middle', marginRight: 5 }} />
                 Turbo Staging em NVMe
               </span>
               <span className="toggle-desc">

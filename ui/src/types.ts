@@ -192,12 +192,13 @@ export interface EngineConnectionInfo {
   token: string;
 }
 
-export interface VortexBridge {
+export interface NexoTorrentBridge {
   getEngineConfig: () => Promise<EngineConnectionInfo>;
   selectFolder: (defaultPath?: string) => Promise<string | null>;
   selectTorrentFile: () => Promise<{ path: string; name: string; base64: string } | null>;
   openPath: (targetPath: string) => Promise<void>;
   showInFolder: (targetPath: string) => Promise<void>;
+  openExternal: (url: string) => Promise<boolean>;
   windowMinimize: () => void;
   windowMaximize: () => void;
   windowClose: () => void;
@@ -213,6 +214,6 @@ export interface VortexBridge {
 
 declare global {
   interface Window {
-    vortex?: VortexBridge;
+    nexoTorrent?: NexoTorrentBridge;
   }
 }

@@ -9,10 +9,10 @@ if (-not (Test-Path (Join-Path $venv 'Scripts\python.exe'))) {
 & (Join-Path $venv 'Scripts\python.exe') -m pip install --upgrade pip
 & (Join-Path $venv 'Scripts\pip.exe') install -r (Join-Path $root 'engine\requirements.txt')
 
-Write-Host "2. Gerando icones..."
+Write-Host "2. Gerando icones Orbe NEXO Mineral..."
 & (Join-Path $venv 'Scripts\python.exe') (Join-Path $root 'scripts\generate_icons.py')
 
-Write-Host "3. Instalando dependencias UI e buildando..."
+Write-Host "3. Instalando dependencias da UI e gerando build..."
 Push-Location (Join-Path $root 'ui')
 npm install
 npm run build
@@ -23,4 +23,4 @@ Push-Location (Join-Path $root 'desktop')
 npm install
 Pop-Location
 
-Write-Host "Setup concluido com sucesso."
+Write-Host "Setup do Nexo Torrent concluido com sucesso."

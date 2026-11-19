@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -18,14 +19,13 @@ if str(ENGINE_DIR) not in sys.path:
     sys.path.insert(0, str(ENGINE_DIR))
 
 from config import AppConfig  # noqa: E402
-from engine import VortexEngine, get_info_hash  # noqa: E402
+from engine import NexoTorrentEngine  # noqa: E402
+from hardware import detect_hardware  # noqa: E402
 
 
 UBUNTU_TORRENT_URL = (
     "https://releases.ubuntu.com/24.04/ubuntu-24.04.4-desktop-amd64.iso.torrent"
 )
-C_TMP = Path(r"C:\_vortex_bench_tmp")
-D_TMP = Path(r"D:\_vortex_bench_tmp")
 
 
 def _fmt_mbps(bytes_per_sec: float) -> str:
@@ -55,7 +55,7 @@ def _build_torrent(payload_file: Path) -> tuple[bytes, str, lt.torrent_info]:
     fs = lt.file_storage()
     lt.add_files(fs, str(payload_file))
     ct = lt.create_torrent(fs, piece_size=512 * 1024)
-    ct.set_creator("VortexBenchmark")
+    ct.set_creator("NexoTorrentBenchmark")
     lt.set_piece_hashes(ct, str(payload_file.parent))
     raw = lt.bencode(ct.generate())
     ti = lt.torrent_info(lt.bdecode(raw))
@@ -165,11 +165,9 @@ def _run_local_baseline(
         while time.time() < deadline:
             ses.post_session_stats()
             for alert in ses.pop_alerts():
-                if isinstance(alert, lt.session_stats_alert):
-                    vals = alert.values
-                    if isinstance(vals, dict):
-                        q = int(vals.get("disk.queued_write_bytes", 0))
-                        max_queued_bytes = max(max_queued_bytes, q)
+                if isinstance(alert, lt.session_stats_alert) and isinstance(alert.values, dict):
+                    q = int(alert.values.get("disk.queued_write_bytes", 0))
+                    max_queued_bytes = max(max_queued_bytes, q)
             st = handle.status()
             peak_rate = max(peak_rate, int(st.download_payload_rate))
             if st.is_finished:
@@ -186,7 +184,7 @@ def _run_local_baseline(
     elapsed = max(0.001, time.perf_counter() - t0)
     avg_bps = total_bytes / elapsed if finished else 0.0
     return {
-        "name": "Baseline Padrao (NVMe)",
+        "name": "Baseline Padrao",
         "finished": finished,
         "elapsed_s": round(elapsed, 2),
         "avg_bps": avg_bps,
@@ -195,7 +193,7 @@ def _run_local_baseline(
     }
 
 
-def _run_local_vortex(
+def _run_local_nexo(
     raw_torrent: bytes,
     ih: str,
     save_dir: Path,
@@ -207,12 +205,12 @@ def _run_local_vortex(
     data_dir: Path,
     label: str,
 ) -> dict[str, Any]:
-    os.environ["VORTEX_DATA_DIR"] = str(data_dir)
+    os.environ["NEXO_TORRENT_DATA_DIR"] = str(data_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
     if staging_dir:
         staging_dir.mkdir(parents=True, exist_ok=True)
 
-    engine = VortexEngine()
+    engine = NexoTorrentEngine()
     engine.apply_config(
         AppConfig(
             profile="turbo_max",
@@ -434,18 +432,17 @@ def _run_live_baseline(raw_torrent: bytes, save_dir: Path, duration_s: int) -> d
     }
 
 
-def _run_live_vortex(
+def _run_live_nexo(
     raw_torrent: bytes,
     save_dir: Path,
     duration_s: int,
     data_dir: Path,
     listen_port: int = 55202,
-    label: str = "VortexTorrent v1.1 (Cold Start)",
+    label: str = "Nexo Torrent (Cold Start)",
 ) -> dict[str, Any]:
-    os.environ["VORTEX_DATA_DIR"] = str(data_dir)
+    os.environ["NEXO_TORRENT_DATA_DIR"] = str(data_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
-    engine = VortexEngine()
-    dht_loaded = bool(engine._dht_state_loaded)
+    engine = NexoTorrentEngine()
     engine.apply_config(
         AppConfig(
             profile="turbo_max",
@@ -498,6 +495,7 @@ def _run_live_vortex(
 
             time.sleep(0.25)
     finally:
+        dht_loaded = bool(engine._dht_state_loaded)
         engine.shutdown()
 
     peers_at[duration_s] = peers_at[duration_s] or peak_peers
@@ -521,14 +519,30 @@ def _run_live_vortex(
     }
 
 
-def _cleanup_temp_dirs() -> None:
-    for root in (C_TMP, D_TMP):
-        if root.exists():
-            shutil.rmtree(root, ignore_errors=True)
+def _select_bench_roots() -> tuple[Path, Path | None, str, str]:
+    hw = detect_hardware()
+    fast_drives = [d for d in hw.drives if d.media_type in ("NVMe", "SSD") and d.free_gb >= 6]
+    hdd_drives = [d for d in hw.drives if d.media_type == "HDD" and d.free_gb >= 6]
+    if fast_drives:
+        best_fast = max(fast_drives, key=lambda d: d.free_bytes)
+        fast_root = Path(f"{best_fast.drive}:\\_nexo_bench_tmp")
+        fast_label = f"{best_fast.drive}: {best_fast.media_type}"
+    else:
+        fast_root = Path(tempfile.gettempdir()) / "_nexo_bench_tmp"
+        fast_label = "Temp local"
+
+    if hdd_drives:
+        best_hdd = max(hdd_drives, key=lambda d: d.free_bytes)
+        hdd_root = Path(f"{best_hdd.drive}:\\_nexo_bench_tmp")
+        hdd_label = f"{best_hdd.drive}: HDD"
+    else:
+        hdd_root = None
+        hdd_label = ""
+    return fast_root, hdd_root, fast_label, hdd_label
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Benchmark comparativo VortexTorrent")
+    parser = argparse.ArgumentParser(description="Benchmark comparativo Nexo Torrent")
     parser.add_argument(
         "--scenarios",
         default="all",
@@ -539,12 +553,16 @@ def main() -> None:
     args = parser.parse_args()
 
     selected = {"local", "disk", "hash", "live"} if args.scenarios == "all" else {args.scenarios}
+    fast_tmp, hdd_tmp, fast_label, hdd_label = _select_bench_roots()
     results: dict[str, Any] = {}
 
-    _cleanup_temp_dirs()
+    for p in (fast_tmp, hdd_tmp):
+        if p and p.exists():
+            shutil.rmtree(p, ignore_errors=True)
+
     try:
         need_local_payload = bool(selected & {"local", "disk", "hash"})
-        seed_dir = C_TMP / "seed_src"
+        seed_dir = fast_tmp / "seed_src"
         payload_file = seed_dir / "bench_payload.bin"
         total_bytes = args.size_mb * 1024 * 1024
         raw_torrent = b""
@@ -561,74 +579,77 @@ def main() -> None:
             seeders = _start_local_seeders(ti, seed_dir, [55101, 55102, 55103, 55104])
             try:
                 if "local" in selected:
-                    print("\n=== Cenario 1: Motor e Protocolo Local (4 seeders em NVMe C:) ===")
+                    print(f"\n=== Cenario 1: Motor e Protocolo Local (4 seeders em {fast_label}) ===")
                     r1a = _run_local_baseline(
-                        ti, C_TMP / "local_baseline", 55110, seeders, total_bytes
+                        ti, fast_tmp / "local_baseline", 55110, seeders, total_bytes
                     )
                     print(
                         f"  1A {r1a['name']}: {r1a['elapsed_s']}s | Media {_fmt_mbps(r1a['avg_bps'])} | Pico {_fmt_mbps(r1a['peak_bps'])} | Fila disco max: {r1a['max_disk_queue_mb']} MB"
                     )
-                    r1b = _run_local_vortex(
+                    r1b = _run_local_nexo(
                         raw_torrent,
                         ih,
-                        C_TMP / "local_vortex",
+                        fast_tmp / "local_nexo",
                         None,
                         False,
                         55111,
                         seeders,
                         total_bytes,
-                        C_TMP / "appdata_1b",
-                        "VortexTorrent Turbo Max (NVMe)",
+                        fast_tmp / "appdata_1b",
+                        "Nexo Torrent Turbo Max",
                     )
                     print(
                         f"  1B {r1b['name']}: {r1b['elapsed_s']}s | Media {_fmt_mbps(r1b['avg_bps'])} | Pico {_fmt_mbps(r1b['peak_bps'])} | Fila disco max: {r1b['max_disk_queue_mb']} MB"
                     )
-                    results["local"] = {"baseline": r1a, "vortex": r1b}
+                    results["local"] = {"baseline": r1a, "nexo": r1b}
 
                 if "disk" in selected:
-                    print("\n=== Cenario 2: Gargalo de Disco Real (HDD D: vs Turbo Staging NVMe C: -> D:) ===")
-                    r2a = _run_local_vortex(
-                        raw_torrent,
-                        ih,
-                        D_TMP / "hdd_direct",
-                        None,
-                        False,
-                        55112,
-                        seeders,
-                        total_bytes,
-                        C_TMP / "appdata_2a",
-                        "Direto no HDD D: (sem staging)",
-                    )
-                    print(
-                        f"  2A {r2a['name']}: {r2a['elapsed_s']}s | Media {_fmt_mbps(r2a['avg_bps'])} | Pico {_fmt_mbps(r2a['peak_bps'])} | Fila disco max: {r2a['max_disk_queue_mb']} MB"
-                    )
+                    if hdd_tmp is None:
+                        print("\n=== Cenario 2: Disco HDD vs Staging (ignorado: nenhum HDD detectado) ===")
+                    else:
+                        print(f"\n=== Cenario 2: Gargalo de Disco ({hdd_label} vs Staging {fast_label} -> {hdd_label}) ===")
+                        r2a = _run_local_nexo(
+                            raw_torrent,
+                            ih,
+                            hdd_tmp / "hdd_direct",
+                            None,
+                            False,
+                            55112,
+                            seeders,
+                            total_bytes,
+                            fast_tmp / "appdata_2a",
+                            f"Direto em {hdd_label} (sem staging)",
+                        )
+                        print(
+                            f"  2A {r2a['name']}: {r2a['elapsed_s']}s | Media {_fmt_mbps(r2a['avg_bps'])} | Pico {_fmt_mbps(r2a['peak_bps'])} | Fila disco max: {r2a['max_disk_queue_mb']} MB"
+                        )
 
-                    stg_dir = C_TMP / "nvme_staging"
-                    dst_dir = D_TMP / "hdd_staged"
-                    r2b = _run_local_vortex(
-                        raw_torrent,
-                        ih,
-                        dst_dir,
-                        stg_dir,
-                        True,
-                        55113,
-                        seeders,
-                        total_bytes,
-                        C_TMP / "appdata_2b",
-                        "Vortex Turbo Staging (C: NVMe -> D: HDD)",
-                    )
-                    final_ok = (dst_dir / "bench_payload.bin").exists() and not (stg_dir / ih).exists()
-                    r2b["staging_cleanup_ok"] = final_ok
-                    print(
-                        f"  2B {r2b['name']}: Total {r2b['elapsed_s']}s (Rede NVMe: {r2b['net_elapsed_s']}s a {_fmt_mbps(r2b['net_bps'])} | Move seq -> D: {r2b['move_elapsed_s']}s a {_fmt_mbps(r2b['move_bps'])}) | Fila max: {r2b['max_disk_queue_mb']} MB | Limpeza ok: {final_ok}"
-                    )
-                    results["disk"] = {"hdd_direct": r2a, "turbo_staging": r2b}
+                        stg_dir = fast_tmp / "nvme_staging"
+                        dst_dir = hdd_tmp / "hdd_staged"
+                        r2b = _run_local_nexo(
+                            raw_torrent,
+                            ih,
+                            dst_dir,
+                            stg_dir,
+                            True,
+                            55113,
+                            seeders,
+                            total_bytes,
+                            fast_tmp / "appdata_2b",
+                            f"Nexo Turbo Staging ({fast_label} -> {hdd_label})",
+                        )
+                        final_ok = (dst_dir / "bench_payload.bin").exists() and not (stg_dir / ih).exists()
+                        r2b["staging_cleanup_ok"] = final_ok
+                        print(
+                            f"  2B {r2b['name']}: Total {r2b['elapsed_s']}s (Rede: {r2b['net_elapsed_s']}s a {_fmt_mbps(r2b['net_bps'])} | Move seq: {r2b['move_elapsed_s']}s a {_fmt_mbps(r2b['move_bps'])}) | Fila max: {r2b['max_disk_queue_mb']} MB | Limpeza ok: {final_ok}"
+                        )
+                        results["disk"] = {"hdd_direct": r2a, "turbo_staging": r2b}
             finally:
                 _stop_seeders(seeders)
 
         if "hash" in selected:
             assert ti is not None
-            print("\n=== Cenario 3: Verificacao SHA (Recheck no Ryzen 7 5700X3D) ===")
+            print("\n=== Cenario 3: Verificacao SHA (Recheck paralelo) ===")
             with payload_file.open("rb") as fp:
                 while fp.read(8 * 1024 * 1024):
                     pass
@@ -636,11 +657,11 @@ def main() -> None:
             print(
                 f"  3A {r3a['name']}: {r3a['elapsed_s']}s | {r3a['mb_per_sec']} MB/s | Projecao 100 GB: {r3a['proj_100gb_s']}s"
             )
-            r3b = _run_hash_recheck(ti, seed_dir, total_bytes, 8, 4096, 16, "Vortex Turbo Max (8 threads hash)")
+            r3b = _run_hash_recheck(ti, seed_dir, total_bytes, 8, 4096, 16, "Nexo Turbo Max (8 threads hash)")
             print(
                 f"  3B {r3b['name']}: {r3b['elapsed_s']}s | {r3b['mb_per_sec']} MB/s | Projecao 100 GB: {r3b['proj_100gb_s']}s"
             )
-            results["hash"] = {"baseline": r3a, "vortex": r3b}
+            results["hash"] = {"baseline": r3a, "nexo": r3b}
 
         if "live" in selected:
             print(f"\n=== Cenario 4: Swarm Real na Internet (Ubuntu 24.04.4 ISO, {args.live_seconds}s por perfil) ===")
@@ -648,46 +669,48 @@ def main() -> None:
             resp.raise_for_status()
             ubuntu_raw = resp.content
 
-            r4a = _run_live_baseline(ubuntu_raw, C_TMP / "live_baseline", args.live_seconds)
+            r4a = _run_live_baseline(ubuntu_raw, fast_tmp / "live_baseline", args.live_seconds)
             print(
                 f"  4A {r4a['name']}: Baixado={r4a['downloaded_mb']} MB | 1MB/s em={r4a['first_1mbs_s']}s | Peers(5s/15s/fim)={r4a['peers_5s']}/{r4a['peers_15s']}/{r4a['peers_end']} (pico {r4a['peak_peers']}) | Media={_fmt_mbps(r4a['avg_bps'])} | Pos-rampa={_fmt_mbps(r4a['tail_bps'])} | Pico={_fmt_mbps(r4a['peak_bps'])} | Efic={r4a['efficiency_pct']}%"
             )
             time.sleep(2.0)
-            appdata_4b = C_TMP / "appdata_4b"
-            r4b = _run_live_vortex(
+            appdata_4b = fast_tmp / "appdata_4b"
+            r4b = _run_live_nexo(
                 ubuntu_raw,
-                C_TMP / "live_vortex",
+                fast_tmp / "live_nexo_cold",
                 args.live_seconds,
                 appdata_4b,
                 listen_port=55202,
-                label="VortexTorrent v1.1 (Cold Start)",
+                label="Nexo Torrent v1.1.1 (Cold Start)",
             )
             print(
                 f"  4B {r4b['name']}: DHT_cache={r4b['dht_state_loaded']} | Baixado={r4b['downloaded_mb']} MB | 1MB/s em={r4b['first_1mbs_s']}s | Peers(5s/15s/fim)={r4b['peers_5s']}/{r4b['peers_15s']}/{r4b['peers_end']} (pico {r4b['peak_peers']}) | Media={_fmt_mbps(r4b['avg_bps'])} | Pos-rampa={_fmt_mbps(r4b['tail_bps'])} | Pico={_fmt_mbps(r4b['peak_bps'])} | Efic={r4b['efficiency_pct']}%"
             )
-            time.sleep(2.0)
-            appdata_4c = C_TMP / "appdata_4c"
+            time.sleep(8.0)
+            appdata_4c = fast_tmp / "appdata_4c"
             (appdata_4c / "state").mkdir(parents=True, exist_ok=True)
-            src_dht = appdata_4b / "state" / "session.state"
+            src_dht = appdata_4b / "state" / "dht_nodes.json"
             if src_dht.exists():
-                shutil.copy2(src_dht, appdata_4c / "state" / "session.state")
-            r4c = _run_live_vortex(
+                shutil.copy2(src_dht, appdata_4c / "state" / "dht_nodes.json")
+            r4c = _run_live_nexo(
                 ubuntu_raw,
-                C_TMP / "live_vortex_warm",
+                fast_tmp / "live_nexo_warm",
                 args.live_seconds,
                 appdata_4c,
                 listen_port=55203,
-                label="VortexTorrent v1.1 (DHT Persistido)",
+                label="Nexo Torrent v1.1.1 (DHT Cache)",
             )
             print(
                 f"  4C {r4c['name']}: DHT_cache={r4c['dht_state_loaded']} | Baixado={r4c['downloaded_mb']} MB | 1MB/s em={r4c['first_1mbs_s']}s | Peers(5s/15s/fim)={r4c['peers_5s']}/{r4c['peers_15s']}/{r4c['peers_end']} (pico {r4c['peak_peers']}) | Media={_fmt_mbps(r4c['avg_bps'])} | Pos-rampa={_fmt_mbps(r4c['tail_bps'])} | Pico={_fmt_mbps(r4c['peak_bps'])} | Efic={r4c['efficiency_pct']}%"
             )
-            results["live"] = {"baseline": r4a, "vortex_cold": r4b, "vortex_warm": r4c}
+            results["live"] = {"baseline": r4a, "nexo_cold": r4b, "nexo_warm": r4c}
 
         print("\n=== RESUMO_JSON ===")
         print(json.dumps(results, indent=2, ensure_ascii=False))
     finally:
-        _cleanup_temp_dirs()
+        for p in (fast_tmp, hdd_tmp):
+            if p and p.exists():
+                shutil.rmtree(p, ignore_errors=True)
         print("\nLimpeza concluida: pastas temporarias removidas.")
 
 

@@ -25,11 +25,11 @@ export function SettingsModal({
   });
 
   useEffect(() => {
-    window.vortex?.getOsHandlersStatus().then(setOsStatus).catch(() => {});
+    window.nexoTorrent?.getOsHandlersStatus().then(setOsStatus).catch(() => {});
   }, []);
 
   const pickFolder = async (current: string, field: 'default_save_path' | 'staging_path') => {
-    const chosen = await window.vortex?.selectFolder(current);
+    const chosen = await window.nexoTorrent?.selectFolder(current);
     if (chosen) {
       setDraft({ ...draft, [field]: chosen });
     }
@@ -46,18 +46,18 @@ export function SettingsModal({
   };
 
   const handleRegisterOs = async () => {
-    if (!window.vortex) return;
-    const res = await window.vortex.registerOsHandlers();
+    if (!window.nexoTorrent) return;
+    const res = await window.nexoTorrent.registerOsHandlers();
     onNotify(res.message, !res.ok);
-    const st = await window.vortex.getOsHandlersStatus();
+    const st = await window.nexoTorrent.getOsHandlersStatus();
     setOsStatus(st);
   };
 
   const handleUnregisterOs = async () => {
-    if (!window.vortex) return;
-    const res = await window.vortex.unregisterOsHandlers();
+    if (!window.nexoTorrent) return;
+    const res = await window.nexoTorrent.unregisterOsHandlers();
     onNotify(res.message, !res.ok);
-    const st = await window.vortex.getOsHandlersStatus();
+    const st = await window.nexoTorrent.getOsHandlersStatus();
     setOsStatus(st);
   };
 
@@ -65,7 +65,7 @@ export function SettingsModal({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-panel" style={{ maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <span>Configurações do VortexTorrent</span>
+          <span>Configurações do Nexo Torrent</span>
           <button className="btn-icon" onClick={onClose}>
             <X size={16} />
           </button>
@@ -292,11 +292,11 @@ export function SettingsModal({
             />
           </div>
 
-          {window.vortex && (
+          {window.nexoTorrent && (
             <div className="toggle-row">
               <div className="toggle-info">
                 <span className="toggle-title">
-                  <ShieldCheck size={13} style={{ color: 'var(--cyan)', verticalAlign: 'middle', marginRight: 5 }} />
+                  <ShieldCheck size={13} style={{ color: 'var(--nexo-brand)', verticalAlign: 'middle', marginRight: 5 }} />
                   Integração Windows (magnet: e .torrent)
                 </span>
                 <span className="toggle-desc">

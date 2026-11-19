@@ -11,12 +11,12 @@ ProfileType = Literal["turbo_max", "balanced", "quiet"]
 
 
 def get_data_dir() -> Path:
-    override = os.environ.get("VORTEX_DATA_DIR", "").strip()
+    override = os.environ.get("NEXO_TORRENT_DATA_DIR", "").strip()
     if override:
         base = Path(override)
     else:
         local_app = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
-        base = Path(local_app) / "VortexTorrent"
+        base = Path(local_app) / "NexoTorrent"
     base.mkdir(parents=True, exist_ok=True)
     return base
 
@@ -39,7 +39,9 @@ def get_config_path() -> Path:
 
 class AppConfig(BaseModel):
     profile: ProfileType = "turbo_max"
-    default_save_path: str = r"D:\Downloads\Torrents"
+    default_save_path: str = Field(
+        default_factory=lambda: str(Path.home() / "Downloads" / "NexoTorrent")
+    )
     nvme_staging_enabled: bool = True
     staging_path: str = ""
     staging_min_free_gb: float = Field(default=20.0, ge=1.0, le=500.0)
@@ -60,7 +62,7 @@ class AppConfig(BaseModel):
     max_active_seeds: int = Field(default=12, ge=0, le=100)
     preallocate_files: bool = True
     minimize_to_tray: bool = True
-    client_fingerprint: str = "VortexTorrent/1.0"
+    client_fingerprint: str = "NexoTorrent/1.1"
 
 
 def load_config() -> AppConfig:

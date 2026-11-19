@@ -5,6 +5,7 @@ import { AddTorrentModal, type AddModalInitial } from './components/AddTorrentMo
 import { RemoveModal } from './components/RemoveModal';
 import { SettingsModal } from './components/SettingsModal';
 import { SpeedChart } from './components/SpeedChart';
+import { SupportModal } from './components/SupportModal';
 import { TitleBar } from './components/TitleBar';
 import { TorrentInspector } from './components/TorrentInspector';
 import { TorrentList, type FilterKey } from './components/TorrentList';
@@ -51,6 +52,7 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [addModal, setAddModal] = useState<AddModalInitial | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<TorrentSummary | null>(null);
   const [dragging, setDragging] = useState(false);
   const [toast, setToast] = useState<{ msg: string; error: boolean } | null>(null);
@@ -82,8 +84,8 @@ export default function App() {
     async function bootstrap() {
       let wsUrl = 'ws://127.0.0.1:19742/ws';
       let token = '';
-      if (window.vortex) {
-        const info = await window.vortex.getEngineConfig();
+      if (window.nexoTorrent) {
+        const info = await window.nexoTorrent.getEngineConfig();
         setEngineConnection(info);
         wsUrl = info.wsUrl;
         token = info.token;
@@ -100,8 +102,8 @@ export default function App() {
       setState(initial);
       setReady(true);
 
-      if (window.vortex) {
-        const pending = await window.vortex.consumePendingExternal();
+      if (window.nexoTorrent) {
+        const pending = await window.nexoTorrent.consumePendingExternal();
         if (pending.length > 0) {
           handleExternalPayload(pending[pending.length - 1]);
         }
@@ -130,7 +132,7 @@ export default function App() {
               if (Array.isArray(msg.events)) {
                 for (const evt of msg.events) {
                   if (evt.type === 'torrent_finished') {
-                    window.vortex?.notifyFinished({
+                    window.nexoTorrent?.notifyFinished({
                       name: evt.name,
                       final_save_path: evt.final_save_path,
                     });
@@ -140,8 +142,8 @@ export default function App() {
               }
               const dl = msg.data.global?.download_rate ?? 0;
               const ul = msg.data.global?.upload_rate ?? 0;
-              window.vortex?.updateTrayTooltip(
-                `VortexTorrent: ↓ ${formatSpeed(dl)} | ↑ ${formatSpeed(ul)}`
+              window.nexoTorrent?.updateTrayTooltip(
+                `Nexo Torrent: ↓ ${formatSpeed(dl)} | ↑ ${formatSpeed(ul)}`
               );
             } else if (msg.type === 'details') {
               setDetails(msg.details ?? null);
@@ -183,9 +185,9 @@ export default function App() {
   }, [selectedHash]);
 
   useEffect(() => {
-    if (!window.vortex) return;
-    const unsubExt = window.vortex.onOpenExternalTorrent(handleExternalPayload);
-    const unsubTray = window.vortex.onTrayAction((action) => {
+    if (!window.nexoTorrent) return;
+    const unsubExt = window.nexoTorrent.onOpenExternalTorrent(handleExternalPayload);
+    const unsubTray = window.nexoTorrent.onTrayAction((action) => {
       if (action === 'pause_all') api.pauseAll().catch(() => {});
       if (action === 'resume_all') api.resumeAll().catch(() => {});
     });
@@ -198,7 +200,7 @@ export default function App() {
   // Ctrl+V global para link magnet quando nenhum modal estiver aberto
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      if (addModal || showSettings || removeTarget) return;
+      if (addModal || showSettings || showSupport || removeTarget) return;
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
       const text = e.clipboardData?.getData('text')?.trim() ?? '';
@@ -209,11 +211,11 @@ export default function App() {
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [addModal, showSettings, removeTarget]);
+  }, [addModal, showSettings, showSupport, removeTarget]);
 
   const handleOpenTorrentFile = async () => {
-    if (window.vortex) {
-      const picked = await window.vortex.selectTorrentFile();
+    if (window.nexoTorrent) {
+      const picked = await window.nexoTorrent.selectTorrentFile();
       if (picked) {
         const f = base64ToFile(picked.base64, picked.name);
         setAddModal({ mode: 'file', file: f });
@@ -246,7 +248,7 @@ export default function App() {
   if (!ready || !config) {
     return (
       <div className="app-shell" style={{ alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--cyan)', fontWeight: 600 }}>
+        <div style={{ color: 'var(--nexo-brand-strong)', fontWeight: 600 }}>
           Iniciando núcleo C++ libtorrent 2.1.1...
         </div>
       </div>
@@ -286,6 +288,7 @@ export default function App() {
         onChangeProfile={handleChangeProfile}
         onOpenMagnet={() => setAddModal({ mode: 'magnet', magnetUri: '' })}
         onOpenTorrentFile={handleOpenTorrentFile}
+        onOpenSupport={() => setShowSupport(true)}
         onOpenSettings={() => setShowSettings(true)}
       />
 
@@ -313,7 +316,7 @@ export default function App() {
           onRemoveRequest={setRemoveTarget}
           onOpenFolder={(t) => {
             const target = t.staging_active ? t.save_path : t.final_save_path;
-            window.vortex?.openPath(target);
+            window.nexoTorrent?.openPath(target);
           }}
         />
 
@@ -347,7 +350,7 @@ export default function App() {
 
       {dragging && (
         <div className="drop-overlay">
-          <UploadCloud size={44} style={{ color: 'var(--cyan)' }} />
+          <UploadCloud size={44} style={{ color: 'var(--nexo-brand)' }} />
           <div style={{ fontSize: 16, fontWeight: 600 }}>Solte o arquivo .torrent aqui</div>
           <div style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>
             Ou solte um link magnet para iniciar imediatamente
@@ -363,7 +366,7 @@ export default function App() {
           onClose={() => setAddModal(null)}
           onAdded={(ih) => {
             setSelectedHash(ih);
-            notify('Torrent adicionado ao motor Turbo.');
+            notify('Torrent adicionado ao motor Nexo.');
           }}
           onError={(msg) => notify(msg, true)}
         />
@@ -382,6 +385,13 @@ export default function App() {
             setHardware(hw);
             notify('Configurações aplicadas em tempo real.');
           }}
+        />
+      )}
+
+      {showSupport && (
+        <SupportModal
+          onClose={() => setShowSupport(false)}
+          onNotify={notify}
         />
       )}
 

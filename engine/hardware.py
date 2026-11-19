@@ -251,7 +251,7 @@ def suggest_staging_path(drives: list[DriveInfo]) -> str:
     if not candidates:
         return ""
     best = max(candidates, key=lambda d: d.free_bytes)
-    return f"{best.drive}:\\VortexStaging"
+    return f"{best.drive}:\\NexoTorrentStaging"
 
 
 def detect_hardware() -> HardwareInfo:

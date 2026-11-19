@@ -3,13 +3,13 @@ import {
   ArrowDown,
   ArrowUp,
   FilePlus2,
+  Heart,
   Link2,
   Minus,
   Radio,
   Settings,
   Square,
   X,
-  Zap,
 } from 'lucide-react';
 import { formatSpeed } from '../format';
 import type { GlobalStats, ProfileType } from '../types';
@@ -20,6 +20,7 @@ interface TitleBarProps {
   onChangeProfile: (profile: ProfileType) => void;
   onOpenMagnet: () => void;
   onOpenTorrentFile: () => void;
+  onOpenSupport: () => void;
   onOpenSettings: () => void;
 }
 
@@ -29,6 +30,7 @@ export function TitleBar({
   onChangeProfile,
   onOpenMagnet,
   onOpenTorrentFile,
+  onOpenSupport,
   onOpenSettings,
 }: TitleBarProps) {
   const bottleneck = globalStats.bottleneck;
@@ -41,10 +43,22 @@ export function TitleBar({
     <header className="titlebar">
       <div className="titlebar-left">
         <div className="brand">
-          <Zap size={16} className="brand-accent" />
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+            <defs>
+              <radialGradient id="nexoOrbBrand" cx="35%" cy="32%" r="68%">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="28%" stopColor="#65b7aa" />
+                <stop offset="70%" stopColor="#0a1d12" />
+                <stop offset="100%" stopColor="#040505" />
+              </radialGradient>
+            </defs>
+            <circle cx="12" cy="12" r="10" fill="url(#nexoOrbBrand)" stroke="#65b7aa" strokeWidth="1.2" />
+            <path d="M12 7v6.5m0 0l-2.6-2.6M12 13.5l2.6-2.6M8.5 16.5h7" stroke="#f6f5f1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          </svg>
           <span>
-            Vortex<span className="brand-accent">Torrent</span>
+            NEXO <span className="brand-accent">TORRENT</span>
           </span>
+          <span className="brand-oss" title="Open Source (MIT)">OSS</span>
         </div>
 
         <div className="kpi-strip">
@@ -101,29 +115,38 @@ export function TitleBar({
           <span>.torrent</span>
         </button>
 
+        <button
+          className="btn btn-support btn-sm"
+          onClick={onOpenSupport}
+          title="Apoiar o Nexo Torrent via Pix"
+        >
+          <Heart size={13} />
+          <span>Apoiar</span>
+        </button>
+
         <button className="btn-icon" onClick={onOpenSettings} title="Configurações">
           <Settings size={16} />
         </button>
 
-        {window.vortex && (
+        {window.nexoTorrent && (
           <div className="win-controls">
             <button
               className="win-btn"
-              onClick={() => window.vortex?.windowMinimize()}
+              onClick={() => window.nexoTorrent?.windowMinimize()}
               title="Minimizar"
             >
               <Minus size={14} />
             </button>
             <button
               className="win-btn"
-              onClick={() => window.vortex?.windowMaximize()}
+              onClick={() => window.nexoTorrent?.windowMaximize()}
               title="Maximizar ou restaurar"
             >
               <Square size={12} />
             </button>
             <button
               className="win-btn close"
-              onClick={() => window.vortex?.windowClose()}
+              onClick={() => window.nexoTorrent?.windowClose()}
               title="Fechar para bandeja"
             >
               <X size={15} />

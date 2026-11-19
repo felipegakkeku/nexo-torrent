@@ -15,7 +15,7 @@ const ICON_ICO = path.join(__dirname, 'assets', 'icon.ico');
 const ICON_PNG = path.join(__dirname, 'assets', 'icon.png');
 const SCRIPTS_DIR = path.join(ROOT_DIR, 'scripts');
 
-const IS_SMOKE_TEST = process.env.VORTEX_SMOKE_TEST === '1';
+const IS_SMOKE_TEST = process.env.NEXO_SMOKE_TEST === '1';
 
 let mainWindow = null;
 let tray = null;
@@ -212,7 +212,7 @@ async function stopEngineGracefully() {
   shutdownDone = true;
 
   await httpPost(`http://127.0.0.1:${enginePort}/api/system/shutdown`, {
-    'X-Vortex-Token': engineToken,
+    'X-Nexo-Token': engineToken,
   });
 
   const waitStart = Date.now();
@@ -235,7 +235,7 @@ async function stopEngineGracefully() {
 async function shouldMinimizeToTray() {
   try {
     const cfg = await httpGetJson(`http://127.0.0.1:${enginePort}/api/config`, {
-      'X-Vortex-Token': engineToken,
+      'X-Nexo-Token': engineToken,
     });
     return Boolean(cfg.minimize_to_tray);
   } catch {
@@ -247,10 +247,10 @@ function createTray() {
   if (IS_SMOKE_TEST) return;
   const iconPath = fs.existsSync(ICON_PNG) ? ICON_PNG : ICON_ICO;
   tray = new Tray(iconPath);
-  tray.setToolTip('VortexTorrent');
+  tray.setToolTip('Nexo Torrent');
   tray.on('click', focusMainWindow);
   const menu = Menu.buildFromTemplate([
-    { label: 'Abrir VortexTorrent', click: focusMainWindow },
+    { label: 'Abrir Nexo Torrent', click: focusMainWindow },
     { type: 'separator' },
     {
       label: 'Retomar todos',
@@ -279,7 +279,7 @@ function createMainWindow() {
     minWidth: 960,
     minHeight: 640,
     frame: false,
-    backgroundColor: '#0B0D12',
+    backgroundColor: '#080909',
     show: !IS_SMOKE_TEST,
     icon: fs.existsSync(ICON_ICO) ? ICON_ICO : undefined,
     webPreferences: {
@@ -302,7 +302,7 @@ function createMainWindow() {
     }
   });
 
-  const devUrl = process.env.VORTEX_DEV_URL;
+  const devUrl = process.env.NEXO_DEV_URL;
   if (devUrl) {
     mainWindow.loadURL(devUrl);
   } else {
@@ -321,7 +321,7 @@ function createMainWindow() {
       await new Promise((r) => setTimeout(r, 1500));
       try {
         await httpGetJson(`http://127.0.0.1:${enginePort}/api/state`, {
-          'X-Vortex-Token': engineToken,
+          'X-Nexo-Token': engineToken,
         });
         if (errors.length > 0) {
           console.error('SMOKE_CONSOLE_ERRORS:', errors.join('; '));
@@ -365,7 +365,7 @@ function runPowerShellFile(scriptName) {
 function queryRegExists(keyPath) {
   return new Promise((resolve) => {
     execFile('reg.exe', ['query', keyPath], { windowsHide: true }, (err, stdout) => {
-      resolve(!err && stdout.includes('VortexTorrent'));
+      resolve(!err && stdout.includes('NexoTorrent'));
     });
   });
 }
@@ -417,6 +417,19 @@ function setupIpc() {
     }
   });
 
+  ipcMain.handle('open-external', async (_e, targetUrl) => {
+    try {
+      const parsed = new URL(String(targetUrl || ''));
+      if (parsed.protocol === 'https:') {
+        await shell.openExternal(parsed.toString());
+        return true;
+      }
+    } catch {
+      // ignora URL invalida
+    }
+    return false;
+  });
+
   ipcMain.on('window-minimize', () => mainWindow?.minimize());
   ipcMain.on('window-maximize', () => {
     if (!mainWindow) return;
@@ -427,7 +440,7 @@ function setupIpc() {
 
   ipcMain.on('update-tray-tooltip', (_e, text) => {
     if (tray && !tray.isDestroyed()) {
-      tray.setToolTip(String(text || 'VortexTorrent').slice(0, 120));
+      tray.setToolTip(String(text || 'Nexo Torrent').slice(0, 120));
     }
   });
 
@@ -461,7 +474,7 @@ function setupIpc() {
 }
 
 app.whenReady().then(async () => {
-  app.setAppUserModelId('com.vortextorrent.app');
+  app.setAppUserModelId('com.nexotorrent.app');
   setupIpc();
   try {
     await startEngine();
@@ -471,7 +484,7 @@ app.whenReady().then(async () => {
       app.exit(1);
       return;
     }
-    dialog.showErrorBox('Erro ao iniciar VortexTorrent', err.message);
+    dialog.showErrorBox('Erro ao iniciar Nexo Torrent', err.message);
     app.quit();
     return;
   }

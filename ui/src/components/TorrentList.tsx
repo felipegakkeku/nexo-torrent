@@ -108,7 +108,7 @@ export function TorrentList({
       <div className="torrent-rows">
         {filtered.length === 0 ? (
           <div className="empty-state">
-            <Zap size={28} style={{ color: 'var(--cyan)', opacity: 0.7 }} />
+            <Zap size={28} style={{ color: 'var(--nexo-brand)', opacity: 0.78 }} />
             <div style={{ fontWeight: 600, color: 'var(--text)' }}>
               Nenhum torrent nesta visualização
             </div>
@@ -173,11 +173,11 @@ export function TorrentList({
                   </div>
                 </div>
 
-                <div className="tabular" style={{ color: 'var(--cyan)', fontWeight: 600 }}>
+                <div className="tabular" style={{ color: 'var(--nexo-brand-strong)', fontWeight: 600 }}>
                   ↓ {formatSpeed(t.download_rate)}
                 </div>
 
-                <div className="tabular" style={{ color: 'var(--violet)' }}>
+                <div className="tabular" style={{ color: 'var(--nexo-info)' }}>
                   ↑ {formatSpeed(t.upload_rate)}
                 </div>
 

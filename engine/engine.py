@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 import logging
 import os
 import shutil
+import socket
+import struct
 import sys
 import threading
 import time
@@ -27,7 +30,7 @@ from hardware import (
 )
 from trackers import get_cached_trackers
 
-logger = logging.getLogger("vortex.engine")
+logger = logging.getLogger("nexo.torrent.engine")
 
 
 def get_info_hash(obj: Any) -> str:
@@ -243,7 +246,7 @@ def build_settings_pack(
         "outgoing_interfaces": outgoing_iface,
         "download_rate_limit": int(cfg.download_limit_kbps) * 1024 if cfg.download_limit_kbps > 0 else 0,
         "upload_rate_limit": int(cfg.upload_limit_kbps) * 1024 if cfg.upload_limit_kbps > 0 else 0,
-        "user_agent": cfg.client_fingerprint or "VortexTorrent/1.0",
+        "user_agent": cfg.client_fingerprint or "NexoTorrent/1.1",
         "alert_mask": int(
             lt.alert_category.error
             | lt.alert_category.status
@@ -275,7 +278,7 @@ _STATE_LABELS = {
 }
 
 
-class VortexEngine:
+class NexoTorrentEngine:
     def __init__(self, on_torrent_finished: Callable[[dict[str, Any]], None] | None = None) -> None:
         self._lock = threading.RLock()
         self.on_torrent_finished = on_torrent_finished
@@ -287,20 +290,19 @@ class VortexEngine:
 
         self.state_dir = get_state_dir()
         self.meta_path = self.state_dir / "meta.json"
-        self.session_state_path = self.state_dir / "session.state"
+        self.dht_nodes_path = self.state_dir / "dht_nodes.json"
+        legacy_state = self.state_dir / "session.state"
+        if legacy_state.exists():
+            try:
+                legacy_state.unlink()
+            except OSError:
+                pass
         self._meta: dict[str, dict[str, Any]] = self._load_meta()
+        self._pending_dht_nodes: list[tuple[str, int]] = self._load_pending_dht_nodes()
+        self._dht_inject_after = time.time() + 0.6
         self._dht_state_loaded = False
 
-        if self.session_state_path.exists():
-            try:
-                sp = lt.read_session_params(self.session_state_path.read_bytes())
-                self.ses = lt.session(sp)
-                self._dht_state_loaded = True
-            except Exception as exc:
-                logger.debug("Fallback para nova sessao DHT: %s", exc)
-                self.ses = lt.session()
-        else:
-            self.ses = lt.session()
+        self.ses = lt.session()
 
         self._metric_idx: dict[str, int] = {
             m.name: m.value_index for m in lt.session_stats_metrics()
@@ -343,13 +345,69 @@ class VortexEngine:
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.meta_path.write_text(json.dumps(self._meta, indent=2), encoding="utf-8")
 
-    def _save_session_state(self) -> None:
+    def _load_pending_dht_nodes(self) -> list[tuple[str, int]]:
+        if not self.dht_nodes_path.exists():
+            return []
         try:
-            self.state_dir.mkdir(parents=True, exist_ok=True)
+            raw = json.loads(self.dht_nodes_path.read_text(encoding="utf-8"))
+            if not isinstance(raw, list):
+                return []
+            nodes: list[tuple[str, int]] = []
+            for item in raw[:200]:
+                if isinstance(item, (list, tuple)) and len(item) == 2:
+                    ip_s = str(item[0]).strip()
+                    port_i = int(item[1])
+                    if ip_s and 0 < port_i < 65536:
+                        nodes.append((ip_s, port_i))
+            return nodes
+        except Exception:
+            return []
+
+    def _inject_pending_dht_nodes(self, now: float) -> None:
+        if not self._pending_dht_nodes or now < self._dht_inject_after:
+            return
+        if not self.cfg.enable_dht:
+            self._pending_dht_nodes = []
+            return
+        injected = 0
+        for ep in self._pending_dht_nodes:
+            try:
+                self.ses.add_dht_node(ep)
+                injected += 1
+            except Exception:
+                pass
+        self._pending_dht_nodes = []
+        if injected > 0:
+            self._dht_state_loaded = True
+
+    def _save_dht_nodes(self) -> None:
+        try:
             sp = self.ses.session_state(lt.save_state_flags_t.save_dht_state)
-            self.session_state_path.write_bytes(lt.write_session_params_buf(sp))
+            buf = lt.write_session_params_buf(sp)
+            dec = lt.bdecode(buf)
+            raw_nodes = dec.get(b"dht state", {}).get(b"nodes", [])
+            endpoints: list[list[Any]] = []
+            seen: set[tuple[str, int]] = set()
+            for item in raw_nodes:
+                ip_s = ""
+                port_i = 0
+                if isinstance(item, bytes) and len(item) == 6:
+                    ip_s = socket.inet_ntoa(item[:4])
+                    port_i = struct.unpack("!H", item[4:6])[0]
+                elif isinstance(item, (list, tuple)) and len(item) == 2:
+                    ip_b, p = item
+                    ip_s = ip_b.decode("ascii", errors="ignore") if isinstance(ip_b, bytes) else str(ip_b)
+                    port_i = int(p)
+                if ip_s and 0 < port_i < 65536 and (ip_s, port_i) not in seen:
+                    seen.add((ip_s, port_i))
+                    endpoints.append([ip_s, port_i])
+                if len(endpoints) >= 200:
+                    break
+            if endpoints:
+                self.state_dir.mkdir(parents=True, exist_ok=True)
+                self.dht_nodes_path.write_text(json.dumps(endpoints), encoding="utf-8")
         except Exception as exc:
-            logger.debug("Erro ao persistir session.state DHT: %s", exc)
+            logger.debug("Erro ao persistir dht_nodes.json: %s", exc)
 
     def apply_config(self, new_cfg: AppConfig) -> AppConfig:
         with self._lock:
@@ -547,6 +605,7 @@ class VortexEngine:
                 injected = self._inject_public_trackers(None, atp=atp)
 
             handle = self.ses.add_torrent(atp)
+            self._inject_pending_dht_nodes(time.time())
             ih = get_info_hash(handle.status()) or ih
 
             self._meta[ih] = {
@@ -621,6 +680,7 @@ class VortexEngine:
                 injected = self._inject_public_trackers(None, atp=atp)
 
             handle = self.ses.add_torrent(atp)
+            self._inject_pending_dht_nodes(time.time())
             if prioritize_ends:
                 self._apply_prioritize_ends(handle)
 
@@ -984,6 +1044,7 @@ class VortexEngine:
     def tick(self) -> dict[str, Any]:
         with self._lock:
             now = time.time()
+            self._inject_pending_dht_nodes(now)
             self.ses.post_session_stats()
             self._process_alerts()
             self._run_anti_stall(now)
@@ -997,7 +1058,7 @@ class VortexEngine:
 
             if now - self._last_session_state_save >= 60.0:
                 self._last_session_state_save = now
-                self._save_session_state()
+                self._save_dht_nodes()
 
             if now - self._last_hw_refresh >= 15.0:
                 self._last_hw_refresh = now
@@ -1317,4 +1378,4 @@ class VortexEngine:
                     time.sleep(0.05)
 
             self._save_meta()
-            self._save_session_state()
+            self._save_dht_nodes()

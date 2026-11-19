@@ -25,7 +25,7 @@ export function getEngineConnection(): EngineConnectionInfo {
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (connInfo.token) {
-    headers.set('X-Vortex-Token', connInfo.token);
+    headers.set('X-Nexo-Token', connInfo.token);
   }
   const resp = await fetch(`${connInfo.baseUrl}${path}`, { ...init, headers });
   if (!resp.ok) {

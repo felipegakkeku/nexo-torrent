@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import time
 from pathlib import Path
@@ -9,7 +10,7 @@ import libtorrent as lt
 import pytest
 
 from config import AppConfig
-from engine import VortexEngine, _resolve_interface_bind, build_settings_pack
+from engine import NexoTorrentEngine, _resolve_interface_bind, build_settings_pack
 from hardware import (
     DriveInfo,
     HardwareInfo,
@@ -24,7 +25,7 @@ def _make_torrent_bytes(source_path: Path, private: bool = False) -> tuple[bytes
     fs = lt.file_storage()
     lt.add_files(fs, str(source_path))
     ct = lt.create_torrent(fs, piece_size=256 * 1024)
-    ct.set_creator("VortexTest")
+    ct.set_creator("NexoTorrentTest")
     if private:
         ct.set_priv(True)
     lt.set_piece_hashes(ct, str(source_path.parent))
@@ -71,26 +72,21 @@ def test_turbo_settings_pack_valid():
 
 def test_hardware_detection():
     hw = detect_hardware()
-    assert hw.cpu_count >= 4
-    assert hw.ram_total_gb >= 8.0
-    c_drive = classify_path_drive(r"C:\Windows", hw)
-    assert c_drive is not None
-    assert c_drive.drive == "C"
-    assert c_drive.media_type in ("NVMe", "SSD")
-
-    d_drive = classify_path_drive(r"D:\Downloads", hw)
-    assert d_drive is not None
-    assert d_drive.drive == "D"
-    assert d_drive.media_type == "HDD"
+    assert hw.cpu_count >= 1
+    assert hw.ram_total_gb > 0.0
+    assert len(hw.drives) >= 1
+    sys_drive = classify_path_drive(str(Path.home()), hw)
+    assert sys_drive is not None
+    assert sys_drive.total_bytes > 0
 
 
 def test_private_torrent_never_boosted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("VORTEX_DATA_DIR", str(tmp_path / "appdata"))
+    monkeypatch.setenv("NEXO_TORRENT_DATA_DIR", str(tmp_path / "appdata"))
     src_file = tmp_path / "privado.bin"
     src_file.write_bytes(os.urandom(512 * 1024))
     raw, ih = _make_torrent_bytes(src_file, private=True)
 
-    engine = VortexEngine()
+    engine = NexoTorrentEngine()
     try:
         info = engine.add_torrent_bytes(
             raw,
@@ -114,11 +110,11 @@ def test_private_torrent_never_boosted(tmp_path: Path, monkeypatch: pytest.Monke
 
 
 def test_local_loopback_swarm_and_staging(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("VORTEX_DATA_DIR", str(tmp_path / "appdata"))
+    monkeypatch.setenv("NEXO_TORRENT_DATA_DIR", str(tmp_path / "appdata"))
 
     seed_dir = tmp_path / "seed_src"
     seed_dir.mkdir(parents=True, exist_ok=True)
-    payload_file = seed_dir / "vortex_32mb_test.bin"
+    payload_file = seed_dir / "nexo_32mb_test.bin"
     payload_bytes = os.urandom(32 * 1024 * 1024)
     payload_file.write_bytes(payload_bytes)
     expected_sha256 = hashlib.sha256(payload_bytes).hexdigest()
@@ -151,7 +147,7 @@ def test_local_loopback_swarm_and_staging(tmp_path: Path, monkeypatch: pytest.Mo
     staging_root.mkdir(parents=True, exist_ok=True)
     dest_root.mkdir(parents=True, exist_ok=True)
 
-    engine = VortexEngine()
+    engine = NexoTorrentEngine()
     engine.apply_config(
         AppConfig(
             profile="turbo_max",
@@ -204,7 +200,7 @@ def test_local_loopback_swarm_and_staging(tmp_path: Path, monkeypatch: pytest.Mo
         mbps = 32.0 / elapsed
         print(f"\n[BENCHMARK LOOPBACK 32MB + STAGING] tempo={elapsed:.2f}s taxa={mbps:.1f} MB/s")
 
-        final_file = dest_root / "vortex_32mb_test.bin"
+        final_file = dest_root / "nexo_32mb_test.bin"
         assert final_file.exists(), "Arquivo movido não existe no destino final."
         actual_sha256 = hashlib.sha256(final_file.read_bytes()).hexdigest()
         assert actual_sha256 == expected_sha256
@@ -219,7 +215,7 @@ def test_local_loopback_swarm_and_staging(tmp_path: Path, monkeypatch: pytest.Mo
     assert (state_dir / f"{ih}.torrent").exists()
     assert (state_dir / f"{ih}.fastresume").exists()
 
-    engine_reload = VortexEngine()
+    engine_reload = NexoTorrentEngine()
     try:
         reloaded = []
         reload_deadline = time.time() + 5.0
@@ -276,37 +272,76 @@ def test_virtual_interfaces_excluded_from_auto_bind():
     assert out_str == ""
 
 
-def test_smart_staging_threshold():
-    hw = detect_hardware()
+def test_smart_staging_threshold(tmp_path: Path):
+    staging_dir = tmp_path / "staging"
+    staging_dir.mkdir(parents=True, exist_ok=True)
+    sys_drive = Path.home().drive.rstrip(":\\/").upper() or "C"
+    other_drive = "Z" if sys_drive != "Z" else "Y"
+
+    mock_hw = HardwareInfo(
+        cpu_count=16,
+        ram_total_gb=32.0,
+        drives=[
+            DriveInfo(
+                drive=sys_drive,
+                media_type="NVMe",
+                free_gb=200.0,
+                total_gb=500.0,
+                free_bytes=200 * (1024**3),
+                total_bytes=500 * (1024**3),
+            ),
+            DriveInfo(
+                drive=other_drive,
+                media_type="HDD",
+                free_gb=1000.0,
+                total_gb=2000.0,
+                free_bytes=1000 * (1024**3),
+                total_bytes=2000 * (1024**3),
+            ),
+        ],
+        interfaces=[],
+    )
     cfg = AppConfig(
         nvme_staging_enabled=True,
-        staging_path=r"C:\VortexStaging",
+        staging_path=str(staging_dir),
         staging_min_size_gb=2.0,
         staging_min_free_gb=20.0,
     )
-    small_ok, small_reason = should_use_staging(r"D:\Downloads", 512 * 1024 * 1024, cfg, hw)
+    small_ok, small_reason = should_use_staging(
+        f"{other_drive}:\\Downloads", 512 * 1024 * 1024, cfg, mock_hw
+    )
     assert small_ok is False
     assert "cache em RAM" in small_reason
 
-    large_ok, _ = should_use_staging(r"D:\Downloads", 5 * (1024**3), cfg, hw)
+    large_ok, _ = should_use_staging(
+        f"{other_drive}:\\Downloads", 5 * (1024**3), cfg, mock_hw
+    )
     assert large_ok is True
 
 
 def test_dht_session_state_persisted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("VORTEX_DATA_DIR", str(tmp_path / "appdata"))
-    e1 = VortexEngine()
+    monkeypatch.setenv("NEXO_TORRENT_DATA_DIR", str(tmp_path / "appdata"))
+    state_dir = tmp_path / "appdata" / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    legacy_file = state_dir / "session.state"
+    legacy_file.write_bytes(b"legacy")
+
+    e1 = NexoTorrentEngine()
     try:
         assert e1._dht_state_loaded is False
+        assert not legacy_file.exists()
     finally:
         e1.shutdown()
 
-    state_file = tmp_path / "appdata" / "state" / "session.state"
-    assert state_file.exists() and state_file.stat().st_size > 0
+    nodes_file = state_dir / "dht_nodes.json"
+    nodes_file.write_text(json.dumps([["67.215.246.10", 6881], ["82.221.103.244", 6881]]), encoding="utf-8")
 
-    e2 = VortexEngine()
+    e2 = NexoTorrentEngine()
     try:
+        time.sleep(0.65)
+        snap = e2.tick()
         assert e2._dht_state_loaded is True
-        snap = e2.get_state_snapshot()
         assert snap["global"]["dht_state_loaded"] is True
+        assert len(e2._pending_dht_nodes) == 0
     finally:
         e2.shutdown()

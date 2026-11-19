@@ -28,7 +28,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from config import AppConfig
-from engine import VortexEngine
+from engine import NexoTorrentEngine
 from hardware import should_use_staging
 from trackers import refresh_trackers_async
 
@@ -75,7 +75,7 @@ def create_app(
             }
         )
 
-    engine = VortexEngine(on_torrent_finished=_on_finished)
+    engine = NexoTorrentEngine(on_torrent_finished=_on_finished)
     ws_clients: dict[WebSocket, str | None] = {}
     stop_event = asyncio.Event()
 
@@ -130,7 +130,7 @@ def create_app(
             await task
             await asyncio.to_thread(engine.shutdown)
 
-    app = FastAPI(title="VortexTorrent Engine", version="1.0.0", lifespan=lifespan)
+    app = FastAPI(title="Nexo Torrent Engine", version="1.1.1", lifespan=lifespan)
     app.state.engine = engine
 
     app.add_middleware(
@@ -146,7 +146,7 @@ def create_app(
         if request.method == "OPTIONS" or request.url.path == "/health":
             return await call_next(request)
         if api_token and request.url.path.startswith("/api/"):
-            header_tok = request.headers.get("X-Vortex-Token", "")
+            header_tok = request.headers.get("X-Nexo-Token", "")
             if header_tok != api_token:
                 return JSONResponse({"detail": "Não autorizado."}, status_code=401)
         return await call_next(request)

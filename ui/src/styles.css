@@ -1,24 +1,72 @@
 :root {
   color-scheme: dark;
-  --bg: #0B0D12;
-  --surface: #121620;
-  --surface-2: #171C28;
-  --surface-hover: #1C2232;
-  --border: #1F2636;
-  --border-strong: #2B354B;
-  --text: #E6EDF7;
-  --text-dim: #8A96AC;
-  --text-muted: #5F6B82;
-  --cyan: #22D3EE;
-  --cyan-dim: rgba(34, 211, 238, 0.14);
-  --violet: #A78BFA;
-  --violet-dim: rgba(167, 139, 250, 0.14);
-  --green: #34D399;
-  --green-dim: rgba(52, 211, 153, 0.14);
-  --amber: #FBBF24;
-  --amber-dim: rgba(251, 191, 36, 0.14);
-  --red: #F87171;
-  --red-dim: rgba(248, 113, 113, 0.14);
+  /* Design Tokens Canonicos NEXO Mineral */
+  --nexo-canvas: #080909;
+  --nexo-sidebar: #0b0c0c;
+  --nexo-surface: #111212;
+  --nexo-elevated: #181919;
+  --nexo-hover: #202121;
+  --nexo-surface-strong: rgba(17, 18, 18, 0.94);
+  --nexo-surface-interactive: rgba(32, 33, 33, 0.92);
+  --nexo-border: #303130;
+  --nexo-border-strong: #444542;
+  --nexo-text: #f6f5f1;
+  --nexo-text-soft: #d3d2cd;
+  --nexo-muted: #b8b7b2;
+  --nexo-subtle: #858681;
+
+  /* Marca NEXO Mineral */
+  --nexo-brand-rgb: 101 183 170;
+  --nexo-brand: #65b7aa;
+  --nexo-brand-hover: #7ecdc0;
+  --nexo-brand-strong: #9ee2d7;
+  --nexo-brand-soft: rgba(101, 183, 170, 0.12);
+  --nexo-brand-border: rgba(101, 183, 170, 0.34);
+  --nexo-brand-ink: #081614;
+
+  /* Cores Semanticas */
+  --nexo-live: #00d2ff;
+  --nexo-live-soft: rgba(0, 210, 255, 0.12);
+  --nexo-success: #49c78e;
+  --nexo-success-soft: rgba(73, 199, 142, 0.12);
+  --nexo-warning: #e6b64a;
+  --nexo-warning-soft: rgba(230, 182, 74, 0.12);
+  --nexo-danger: #ff5b6e;
+  --nexo-danger-soft: rgba(255, 91, 110, 0.12);
+  --nexo-info: #8094d6;
+  --nexo-info-soft: rgba(128, 148, 214, 0.14);
+
+  /* Vidro e Tipografia */
+  --nexo-glass-bg: rgba(17, 18, 18, 0.78);
+  --nexo-glass-bg-strong: rgba(14, 16, 16, 0.92);
+  --nexo-glass-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  --nexo-glass-blur: 18px;
+  --nexo-radius-sm: 8px;
+  --nexo-radius: 12px;
+  --nexo-transition: 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  --font: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Sora', 'DM Sans', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, monospace;
+
+  /* Aliases semanticos de layout */
+  --bg: var(--nexo-canvas);
+  --surface: var(--nexo-surface);
+  --surface-2: var(--nexo-elevated);
+  --surface-hover: var(--nexo-hover);
+  --border: var(--nexo-border);
+  --border-strong: var(--nexo-border-strong);
+  --text: var(--nexo-text);
+  --text-dim: var(--nexo-muted);
+  --text-muted: var(--nexo-subtle);
+  --brand: var(--nexo-brand);
+  --brand-soft: var(--nexo-brand-soft);
+  --info: var(--nexo-info);
+  --info-soft: var(--nexo-info-soft);
+  --green: var(--nexo-success);
+  --amber: var(--nexo-warning);
+  --amber-soft: var(--nexo-warning-soft);
+  --red: var(--nexo-danger);
+  --red-soft: var(--nexo-danger-soft);
 }
 
 * {
@@ -32,16 +80,23 @@ body,
 #root {
   height: 100%;
   width: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Segoe UI', Inter, system-ui, -apple-system, sans-serif;
+  background: var(--nexo-canvas);
+  color: var(--nexo-text);
+  font-family: var(--font);
   font-size: 13px;
   line-height: 1.4;
   overflow: hidden;
   user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  color: var(--nexo-brand-ink);
+  background: rgba(101, 183, 170, 0.75);
 }
 
 .tabular {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -55,12 +110,12 @@ body,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #232B3D;
+  background: #272929;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #323E58;
+  background: #3a3d3c;
 }
 
 button {
@@ -77,18 +132,19 @@ select,
 textarea {
   font-family: inherit;
   font-size: inherit;
-  color: var(--text);
-  background: #0D1119;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  color: var(--nexo-text);
+  background: var(--nexo-canvas);
+  border: 1px solid var(--nexo-border-strong);
+  border-radius: var(--nexo-radius-sm);
   padding: 7px 10px;
   outline: none;
+  transition: border-color var(--nexo-transition);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: var(--cyan);
+  border-color: var(--nexo-brand);
 }
 
 /* Shell */
@@ -96,15 +152,17 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse 80% 45% at 20% 0%, rgba(101, 183, 170, 0.055), transparent 65%),
+    var(--nexo-canvas);
   position: relative;
 }
 
 /* Titlebar */
 .titlebar {
-  height: 44px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  height: 46px;
+  background: var(--nexo-sidebar);
+  border-bottom: 1px solid var(--nexo-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -124,20 +182,33 @@ textarea:focus {
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 13.5px;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.3px;
 }
 
 .brand-accent {
-  color: var(--cyan);
+  color: var(--nexo-brand);
+}
+
+.brand-oss {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--nexo-brand-soft);
+  border: 1px solid var(--nexo-brand-border);
+  color: var(--nexo-brand-strong);
+  letter-spacing: 0.6px;
 }
 
 .kpi-strip {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   -webkit-app-region: no-drag;
 }
 
@@ -145,18 +216,18 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 9px;
-  border-radius: 6px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: var(--nexo-radius-sm);
+  background: var(--nexo-surface);
+  border: 1px solid var(--nexo-border);
   font-size: 12px;
   white-space: nowrap;
 }
 
-.kpi-dl { color: var(--cyan); font-weight: 600; }
-.kpi-ul { color: var(--violet); font-weight: 600; }
-.kpi-ok { color: var(--green); }
-.kpi-warn { color: var(--amber); }
+.kpi-dl { color: var(--nexo-brand-strong); font-weight: 600; }
+.kpi-ul { color: var(--nexo-info); font-weight: 600; }
+.kpi-ok { color: var(--nexo-success); }
+.kpi-warn { color: var(--nexo-warning); }
 
 .titlebar-actions {
   display: flex;
@@ -166,12 +237,12 @@ textarea:focus {
 }
 
 .profile-select {
-  padding: 4px 8px;
+  padding: 5px 9px;
   font-size: 12px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  color: var(--text);
+  background: var(--nexo-elevated);
+  border: 1px solid var(--nexo-border-strong);
+  border-radius: var(--nexo-radius-sm);
+  color: var(--nexo-text);
 }
 
 .btn {
@@ -180,18 +251,18 @@ textarea:focus {
   justify-content: center;
   gap: 6px;
   padding: 6px 11px;
-  border-radius: 6px;
+  border-radius: var(--nexo-radius-sm);
   font-weight: 500;
   font-size: 12.5px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-2);
-  transition: background 0.12s, border-color 0.12s;
+  border: 1px solid var(--nexo-border-strong);
+  background: var(--nexo-elevated);
+  transition: background var(--nexo-transition), border-color var(--nexo-transition);
   white-space: nowrap;
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--surface-hover);
-  border-color: #3A4763;
+  background: var(--nexo-hover);
+  border-color: #575955;
 }
 
 .btn:disabled {
@@ -200,28 +271,28 @@ textarea:focus {
 }
 
 .btn-primary {
-  background: rgba(34, 211, 238, 0.16);
-  border-color: rgba(34, 211, 238, 0.45);
-  color: #CCFBF1;
+  background: var(--nexo-brand-soft);
+  border-color: var(--nexo-brand-border);
+  color: var(--nexo-brand-strong);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: rgba(34, 211, 238, 0.25);
-  border-color: var(--cyan);
+  background: rgba(101, 183, 170, 0.22);
+  border-color: var(--nexo-brand);
 }
 
 .btn-danger {
-  background: var(--red-dim);
-  border-color: rgba(248, 113, 113, 0.4);
-  color: #FECACA;
+  background: var(--nexo-danger-soft);
+  border-color: rgba(255, 91, 110, 0.4);
+  color: #ffc2ca;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: rgba(248, 113, 113, 0.25);
+  background: rgba(255, 91, 110, 0.24);
 }
 
 .btn-sm {
-  padding: 4px 8px;
+  padding: 4px 9px;
   font-size: 12px;
 }
 
@@ -233,13 +304,13 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-dim);
-  transition: background 0.12s, color 0.12s;
+  color: var(--nexo-muted);
+  transition: background var(--nexo-transition), color var(--nexo-transition);
 }
 
 .btn-icon:hover {
-  background: var(--surface-hover);
-  color: var(--text);
+  background: var(--nexo-hover);
+  color: var(--nexo-text);
 }
 
 .win-controls {
@@ -248,7 +319,7 @@ textarea:focus {
   gap: 2px;
   margin-left: 4px;
   padding-left: 6px;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--nexo-border);
 }
 
 .win-btn {
@@ -257,17 +328,18 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 5px;
-  color: var(--text-dim);
+  border-radius: 6px;
+  color: var(--nexo-muted);
+  transition: background var(--nexo-transition), color var(--nexo-transition);
 }
 
 .win-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text);
+  background: var(--nexo-hover);
+  color: var(--nexo-text);
 }
 
 .win-btn.close:hover {
-  background: #DC2626;
+  background: var(--nexo-danger);
   color: #fff;
 }
 
@@ -283,10 +355,10 @@ textarea:focus {
 
 /* Speed Chart card */
 .chart-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 12px;
+  background: var(--nexo-surface);
+  border: 1px solid var(--nexo-border);
+  border-radius: var(--nexo-radius);
+  padding: 9px 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -298,7 +370,7 @@ textarea:focus {
   align-items: center;
   justify-content: space-between;
   font-size: 11.5px;
-  color: var(--text-dim);
+  color: var(--nexo-muted);
 }
 
 .chart-legend {
@@ -310,7 +382,7 @@ textarea:focus {
 .legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .dot {
@@ -323,9 +395,9 @@ textarea:focus {
 .list-card {
   flex: 1;
   min-height: 180px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--nexo-surface);
+  border: 1px solid var(--nexo-border);
+  border-radius: var(--nexo-radius);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -336,7 +408,8 @@ textarea:focus {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--nexo-border);
+  background: var(--nexo-sidebar);
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -349,20 +422,20 @@ textarea:focus {
 
 .filter-tab {
   padding: 5px 10px;
-  border-radius: 6px;
+  border-radius: var(--nexo-radius-sm);
   font-size: 12px;
-  color: var(--text-dim);
-  transition: background 0.12s, color 0.12s;
+  color: var(--nexo-muted);
+  transition: background var(--nexo-transition), color var(--nexo-transition);
 }
 
 .filter-tab:hover {
-  background: var(--surface-2);
-  color: var(--text);
+  background: var(--nexo-elevated);
+  color: var(--nexo-text);
 }
 
 .filter-tab.active {
-  background: var(--cyan-dim);
-  color: var(--cyan);
+  background: var(--nexo-brand-soft);
+  color: var(--nexo-brand-strong);
   font-weight: 600;
 }
 
@@ -381,7 +454,7 @@ textarea:focus {
 .search-box svg {
   position: absolute;
   left: 9px;
-  color: var(--text-muted);
+  color: var(--nexo-subtle);
   pointer-events: none;
 }
 
@@ -398,22 +471,22 @@ textarea:focus {
 
 .torrent-row {
   display: grid;
-  grid-template-columns: minmax(220px, 2.2fr) 150px 125px 115px 90px 105px 112px;
+  grid-template-columns: minmax(220px, 2.2fr) 150px 132px 120px 92px 105px 112px;
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  border-bottom: 1px solid rgba(31, 38, 54, 0.7);
+  border-bottom: 1px solid rgba(48, 49, 48, 0.6);
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background var(--nexo-transition);
 }
 
 .torrent-row:hover {
-  background: var(--surface-2);
+  background: var(--nexo-elevated);
 }
 
 .torrent-row.selected {
-  background: rgba(34, 211, 238, 0.08);
-  box-shadow: inset 3px 0 0 var(--cyan);
+  background: rgba(101, 183, 170, 0.09);
+  box-shadow: inset 3px 0 0 var(--nexo-brand);
 }
 
 .torrent-title-col {
@@ -443,36 +516,36 @@ textarea:focus {
   align-items: center;
   gap: 4px;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: 5px;
   font-size: 10.5px;
   font-weight: 600;
   flex-shrink: 0;
 }
 
 .badge-nvme {
-  background: var(--cyan-dim);
-  color: var(--cyan);
-  border: 1px solid rgba(34, 211, 238, 0.3);
+  background: var(--nexo-brand-soft);
+  color: var(--nexo-brand-strong);
+  border: 1px solid var(--nexo-brand-border);
 }
 
 .badge-seq {
-  background: var(--violet-dim);
-  color: var(--violet);
+  background: var(--nexo-info-soft);
+  color: var(--nexo-info);
 }
 
 .badge-priv {
-  background: var(--amber-dim);
-  color: var(--amber);
+  background: var(--nexo-warning-soft);
+  color: var(--nexo-warning);
 }
 
 .badge-err {
-  background: var(--red-dim);
-  color: var(--red);
+  background: var(--nexo-danger-soft);
+  color: var(--nexo-danger);
 }
 
 .torrent-subline {
   font-size: 11.5px;
-  color: var(--text-dim);
+  color: var(--nexo-muted);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -486,25 +559,25 @@ textarea:focus {
 
 .progress-track {
   height: 6px;
-  background: #0D1119;
+  background: var(--nexo-canvas);
   border-radius: 999px;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid var(--nexo-border);
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #06B6D4, #22D3EE);
+  background: linear-gradient(90deg, #4b9e91, var(--nexo-brand), var(--nexo-brand-strong));
   border-radius: 999px;
   transition: width 0.25s ease;
 }
 
 .progress-fill.done {
-  background: linear-gradient(90deg, #10B981, #34D399);
+  background: linear-gradient(90deg, #35a875, var(--nexo-success));
 }
 
 .progress-fill.paused {
-  background: #475569;
+  background: #444542;
 }
 
 .row-actions {
@@ -521,7 +594,7 @@ textarea:focus {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  color: var(--text-dim);
+  color: var(--nexo-muted);
   padding: 28px;
   text-align: center;
 }
@@ -530,9 +603,9 @@ textarea:focus {
 .inspector-card {
   height: 245px;
   flex-shrink: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--nexo-surface);
+  border: 1px solid var(--nexo-border);
+  border-radius: var(--nexo-radius);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -544,8 +617,8 @@ textarea:focus {
   justify-content: space-between;
   padding: 0 12px;
   height: 36px;
-  border-bottom: 1px solid var(--border);
-  background: #10141D;
+  border-bottom: 1px solid var(--nexo-border);
+  background: var(--nexo-sidebar);
 }
 
 .tab-list {
@@ -559,20 +632,21 @@ textarea:focus {
   height: 100%;
   padding: 0 12px;
   font-size: 12px;
-  color: var(--text-dim);
+  color: var(--nexo-muted);
   border-bottom: 2px solid transparent;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  transition: color var(--nexo-transition);
 }
 
 .inspector-tab:hover {
-  color: var(--text);
+  color: var(--nexo-text);
 }
 
 .inspector-tab.active {
-  color: var(--cyan);
-  border-bottom-color: var(--cyan);
+  color: var(--nexo-brand-strong);
+  border-bottom-color: var(--nexo-brand);
   font-weight: 600;
 }
 
@@ -596,15 +670,15 @@ textarea:focus {
 }
 
 .kv-label {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 10.5px;
+  color: var(--nexo-subtle);
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.45px;
 }
 
 .kv-val {
   font-size: 12.5px;
-  color: var(--text);
+  color: var(--nexo-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -619,25 +693,25 @@ textarea:focus {
 .data-table th {
   text-align: left;
   padding: 5px 8px;
-  color: var(--text-muted);
+  color: var(--nexo-subtle);
   font-weight: 600;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--nexo-border);
   position: sticky;
   top: 0;
-  background: var(--surface);
+  background: var(--nexo-surface);
 }
 
 .data-table td {
   padding: 5px 8px;
-  border-bottom: 1px solid rgba(31, 38, 54, 0.5);
+  border-bottom: 1px solid rgba(48, 49, 48, 0.5);
 }
 
 /* Modals */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(5, 7, 11, 0.78);
-  backdrop-filter: blur(4px);
+  background: rgba(4, 5, 5, 0.78);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -649,21 +723,22 @@ textarea:focus {
   width: 100%;
   max-width: 660px;
   max-height: 88vh;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  background: var(--nexo-glass-bg-strong);
+  border: 1px solid var(--nexo-border-strong);
+  border-radius: var(--nexo-radius);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+  box-shadow: var(--nexo-glass-shadow);
 }
 
 .modal-header {
   padding: 13px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--nexo-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 14px;
 }
@@ -678,12 +753,12 @@ textarea:focus {
 
 .modal-footer {
   padding: 12px 16px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--nexo-border);
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  background: #10141D;
+  background: var(--nexo-sidebar);
 }
 
 .field {
@@ -700,7 +775,7 @@ textarea:focus {
 
 .field-label {
   font-size: 12px;
-  color: var(--text-dim);
+  color: var(--nexo-muted);
   font-weight: 500;
 }
 
@@ -709,9 +784,9 @@ textarea:focus {
   align-items: center;
   justify-content: space-between;
   padding: 9px 11px;
-  border-radius: 7px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  border-radius: var(--nexo-radius-sm);
+  background: var(--nexo-elevated);
+  border: 1px solid var(--nexo-border);
   gap: 12px;
 }
 
@@ -728,15 +803,15 @@ textarea:focus {
 
 .toggle-desc {
   font-size: 11.5px;
-  color: var(--text-dim);
+  color: var(--nexo-muted);
 }
 
 /* Drop overlay */
 .drop-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(11, 13, 18, 0.88);
-  border: 2px dashed var(--cyan);
+  background: rgba(8, 9, 9, 0.88);
+  border: 2px dashed var(--nexo-brand);
   z-index: 80;
   display: flex;
   flex-direction: column;
@@ -750,16 +825,136 @@ textarea:focus {
   position: fixed;
   bottom: 18px;
   right: 18px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-left: 3px solid var(--cyan);
+  background: var(--nexo-elevated);
+  border: 1px solid var(--nexo-border-strong);
+  border-left: 3px solid var(--nexo-brand);
   padding: 10px 14px;
-  border-radius: 7px;
+  border-radius: var(--nexo-radius-sm);
   z-index: 90;
   max-width: 380px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--nexo-glass-shadow);
 }
 
 .toast.error {
-  border-left-color: var(--red);
+  border-left-color: var(--nexo-danger);
+}
+
+/* Apoio via Pix */
+.btn-support {
+  background: transparent;
+  border-color: var(--nexo-border);
+  color: var(--nexo-text-soft);
+}
+
+.btn-support svg {
+  color: var(--nexo-brand);
+}
+
+.btn-support:hover:not(:disabled) {
+  background: var(--nexo-brand-soft);
+  border-color: var(--nexo-brand-border);
+  color: var(--nexo-brand-strong);
+}
+
+.support-desc {
+  font-size: 12.5px;
+  color: var(--nexo-text-soft);
+  line-height: 1.5;
+}
+
+.support-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.support-preset {
+  border: 1px solid var(--nexo-border);
+  background: var(--nexo-elevated);
+}
+
+.support-preset.active {
+  border-color: var(--nexo-brand-border);
+}
+
+.support-grid {
+  display: grid;
+  grid-template-columns: 188px 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.support-qr-box {
+  background: var(--nexo-elevated);
+  border: 1px solid var(--nexo-border);
+  border-radius: var(--nexo-radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.support-qr-img {
+  width: 164px;
+  height: 164px;
+  border-radius: 6px;
+  display: block;
+}
+
+.support-qr-placeholder {
+  width: 164px;
+  height: 164px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nexo-canvas);
+  color: var(--nexo-muted);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.support-qr-hint {
+  font-size: 11px;
+  color: var(--nexo-muted);
+  text-align: center;
+}
+
+.support-info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.support-key {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  background: var(--nexo-canvas);
+  border: 1px solid var(--nexo-border);
+  border-radius: var(--nexo-radius-sm);
+  font-size: 11px;
+  color: var(--nexo-text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: all;
+}
+
+.support-code-box {
+  width: 100%;
+  font-size: 11px;
+  color: var(--nexo-muted);
+  user-select: all;
+}
+
+.support-footer {
+  justify-content: space-between;
+}
+
+@media (max-width: 560px) {
+  .support-grid {
+    grid-template-columns: 1fr;
+  }
 }
