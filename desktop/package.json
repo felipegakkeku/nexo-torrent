@@ -1,0 +1,13 @@
+{
+  "name": "vortex-torrent-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cliente BitTorrent de alta velocidade com núcleo libtorrent 2.1.1",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^35.2.1"
+  }
+}

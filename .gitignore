@@ -1,0 +1,21 @@
+# Python
+engine/.venv/
+.venv/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Node / Electron / Vite
+**/node_modules/
+ui/dist/
+desktop/dist/
+desktop/out/
+*.tsbuildinfo
+
+# Logs e temporarios
+*.log
+tmp/
+.env
+.env.local
+desktop/.vortex-runtime.json
