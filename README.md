@@ -37,3 +37,8 @@ Cliente BitTorrent desktop de alta velocidade para Windows, construido com núcl
    ```powershell
    .\engine\.venv\Scripts\python.exe -m pytest -v -s .\engine\tests\test_engine.py
    ```
+5. Rodar suíte completa de benchmarks comparativos (motor local, disco D: vs NVMe staging, verificação SHA e swarm real Ubuntu ISO):
+   ```powershell
+   .\engine\.venv\Scripts\python.exe .\scripts\benchmark.py --scenarios all --size-mb 512 --live-seconds 25
+   ```
+   Opções disponíveis: `--scenarios all|local|disk|hash|live`, `--size-mb` e `--live-seconds`. Todos os arquivos temporários são removidos automaticamente ao final.
